@@ -24,6 +24,7 @@ export type Settings = {
   colors: number;
   columns: number;
   stagger: boolean;
+  dotLayout: "regular" | "adaptive";
   diameter: number;
   minDot: number;
   labels: boolean;
@@ -128,9 +129,10 @@ export type Notebook = {
 export const defaults: Settings = {
   mode: "dots",
   difficulty: "Easy",
-  colors: 6,
+  colors: 60,
   columns: 36,
   stagger: true,
+  dotLayout: "regular",
   diameter: 2,
   minDot: 1.5,
   labels: true,
@@ -180,4 +182,9 @@ export const difficulty: Record<
   Advanced: { colors: 12, minRegion: 10, smoothing: 1 },
   Expert: { colors: 18, minRegion: 5, smoothing: 1 },
 };
-export const letter = (n: number) => (n < 0 ? "" : String.fromCharCode(65 + n));
+export function letter(n: number): string {
+  let value = "";
+  for (let i = n + 1; i > 0; i = Math.floor((i - 1) / 26))
+    value = String.fromCharCode(65 + ((i - 1) % 26)) + value;
+  return value;
+}

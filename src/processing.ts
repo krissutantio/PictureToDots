@@ -1,3 +1,5 @@
+import { dotMarks } from "./dots";
+import { letter } from "./types";
 import type { FeatureData } from "./subject-types";
 import type { Artwork, Marker, Region, Settings } from "./types";
 export function rgb(hex: string): number[] {
@@ -27,10 +29,12 @@ export function selectPalette(
     (m) => m.enabled && /^#[\da-f]{6}$/i.test(m.hex),
   );
   if (!allowed.length) throw Error("Enable at least one valid marker swatch.");
+  if (count >= allowed.length)
+    return [...allowed].sort((a, b) => lab(rgb(a.hex))[0] - lab(rgb(b.hex))[0]);
   const colors = allowed.map((m) => lab(rgb(m.hex)));
   const selected: number[] = [];
   const errors = new Float64Array(samples.length).fill(Infinity);
-  for (let k = 0; k < Math.min(count, allowed.length, 26); k++) {
+  for (let k = 0; k < Math.min(count, allowed.length, 60); k++) {
     let best = -1,
       score = Infinity;
     for (let c = 0; c < colors.length; c++) {
@@ -340,7 +344,16 @@ export function geometry(s: Settings, w: number, h: number) {
   const width = s.width * 72,
     height = s.height * 72,
     left = s.margin * 72,
-    top = (s.margin + s.binding) * 72 + 25;
+    top =
+      (s.margin + s.binding) * 72 +
+      25 +
+      Math.max(
+        0,
+        Math.ceil(
+          Math.min(60, s.colors) / legendCapacity(s.width * 72, s.margin * 72),
+        ) - 1,
+      ) *
+        12;
   const areaW = width - 2 * left,
     areaH = height - top - s.margin * 72 - 24;
   const pitch = Math.min(areaW / (w + 0.5), areaH / h);
@@ -358,13 +371,32 @@ export function printWarnings(s: Settings, a: Artwork): string[] {
   const g = geometry(s, a.width, a.height);
   const warnings: string[] = [];
   if (g.pitch <= 0) warnings.push("Margins leave no printable area.");
-  if (s.mode === "dots" && (g.diameter * 25.4) / 72 < s.minDot)
+  const marks = s.mode === "dots" ? dotMarks(a, s, g) : [];
+  if (
+    s.mode === "dots" &&
+    (s.dotLayout === "adaptive"
+      ? s.diameter < s.minDot
+      : (g.diameter * 25.4) / 72 < s.minDot)
+  )
     warnings.push(
       "Dots are below your minimum diameter. Reduce resolution or increase page size.",
     );
-  if (s.mode === "dots" && s.labels && g.font < 3)
+  if (
+    s.mode === "dots" &&
+    s.labels &&
+    (marks.length ? marks.some((m) => m.font < 3) : g.font < 3)
+  )
     warnings.push(
       "Letters are smaller than 3 pt. Reduce resolution before printing.",
+    );
+  if (
+    s.mode === "dots" &&
+    s.dotLayout === "adaptive" &&
+    a.assignments.some((c) => c >= 0) &&
+    !marks.length
+  )
+    warnings.push(
+      "No adaptive marks fit these physical limits. Increase page size, reduce resolution or adjust mark diameters.",
     );
   if (s.mode === "lines") {
     const n = a.regions.filter(
@@ -487,23 +519,25 @@ export function simplifyRegions(
   }));
 }
 export const labelFits = (r: Region, s: Settings, pitch: number) =>
-  (r.clearance - s.simplification) * pitch >= 3.2;
+  (r.clearance - s.simplification) * pitch >=
+  Math.max(3.2, letter(r.color).length * 1.7);
+export const legendCapacity = (width: number, margin: number) =>
+  Math.max(1, Math.floor((width - 2 * margin - 25) / 22));
 export function topLegend(palette: Marker[], width: number, margin: number) {
-  const dark = palette.filter((m) => lab(rgb(m.hex))[0] < 60).length;
-  const groups = [
-    { label: "DARK", start: 0, end: dark },
-    { label: "LIGHT", start: dark, end: palette.length },
-  ].filter((g) => g.end > g.start);
-  const step = (width - 2 * margin - groups.length * 25) / palette.length;
-  let x = margin;
-  return groups.map((g) => {
-    const headingX = x;
-    x += 25;
-    const entries = Array.from({ length: g.end - g.start }, (_, j) => ({
-      index: g.start + j,
-      x: x + j * step,
-    }));
-    x += entries.length * step;
-    return { label: g.label, x: headingX, entries };
+  const capacity = legendCapacity(width, margin);
+  const rows = Math.ceil(palette.length / capacity);
+  return Array.from({ length: rows }, (_, row) => {
+    const entries = palette.slice(row * capacity, (row + 1) * capacity);
+    const dark = entries.every((m) => lab(rgb(m.hex))[0] < 60);
+    const light = entries.every((m) => lab(rgb(m.hex))[0] >= 60);
+    return {
+      label: dark ? "DARK" : light ? "LIGHT" : "INKS",
+      x: margin,
+      yOffset: row * 12,
+      entries: entries.map((_, j) => ({
+        index: row * capacity + j,
+        x: margin + 25 + j * 22,
+      })),
+    };
   });
 }

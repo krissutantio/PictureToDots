@@ -1,12 +1,12 @@
 {
-  "name": "Ohuhu Maui 60 — calibration workspace",
+  "name": "Maui 60 workspace \u2014 unverified starter colors",
   "verified": false,
   "paper": "Uncoated paper, not yet calibrated",
   "brand": "Ohuhu",
   "count": 60,
   "tips": ["Fine", "Brush"],
   "purchase": "https://www.target.com/p/ohuhu-markers-for-adult-coloring-books-no-bleeding-60-colors-water-based-dual-tips-fineliner-brush-drawing-pens-art-markers-maui-black/-/A-1007057547",
-  "note": "The official 60-color mapping has not been verified. These 18 demonstration swatches are NOT claimed to match Ohuhu ink. Replace them with your physical marker identifiers and measured swatches before matching a real set.",
+  "note": "All 60 enabled swatches are unverified demonstration colors, NOT an official Ohuhu Maui code-to-ink chart. No manufacturer codes are invented. Replace these starter swatches with your actual marker identifiers and measured colors before physical matching.",
   "markers": [
     {
       "id": "demo-1",
@@ -14,32 +14,359 @@
       "hex": "#285447",
       "enabled": true
     },
-    { "id": "demo-2", "name": "Leaf green", "hex": "#66834d", "enabled": true },
-    { "id": "demo-3", "name": "Sage", "hex": "#9cae7d", "enabled": true },
-    { "id": "demo-4", "name": "Sky blue", "hex": "#8bc1cd", "enabled": true },
-    { "id": "demo-5", "name": "Ocean", "hex": "#447e9c", "enabled": true },
-    { "id": "demo-6", "name": "Midnight", "hex": "#334b69", "enabled": true },
+    {
+      "id": "demo-2",
+      "name": "Leaf green",
+      "hex": "#66834d",
+      "enabled": true
+    },
+    {
+      "id": "demo-3",
+      "name": "Sage",
+      "hex": "#9cae7d",
+      "enabled": true
+    },
+    {
+      "id": "demo-4",
+      "name": "Sky blue",
+      "hex": "#8bc1cd",
+      "enabled": true
+    },
+    {
+      "id": "demo-5",
+      "name": "Ocean",
+      "hex": "#447e9c",
+      "enabled": true
+    },
+    {
+      "id": "demo-6",
+      "name": "Midnight",
+      "hex": "#334b69",
+      "enabled": true
+    },
     {
       "id": "demo-7",
       "name": "Butter yellow",
       "hex": "#efd16b",
       "enabled": true
     },
-    { "id": "demo-8", "name": "Marigold", "hex": "#dfa130", "enabled": true },
-    { "id": "demo-9", "name": "Coral", "hex": "#df695d", "enabled": true },
-    { "id": "demo-10", "name": "Rose", "hex": "#db9bac", "enabled": true },
-    { "id": "demo-11", "name": "Blush", "hex": "#edc4c4", "enabled": true },
-    { "id": "demo-12", "name": "Berry", "hex": "#9e4e66", "enabled": true },
-    { "id": "demo-13", "name": "Lavender", "hex": "#aaa0c3", "enabled": true },
-    { "id": "demo-14", "name": "Violet", "hex": "#75628e", "enabled": true },
-    { "id": "demo-15", "name": "Sand", "hex": "#d3b18a", "enabled": true },
+    {
+      "id": "demo-8",
+      "name": "Marigold",
+      "hex": "#dfa130",
+      "enabled": true
+    },
+    {
+      "id": "demo-9",
+      "name": "Coral",
+      "hex": "#df695d",
+      "enabled": true
+    },
+    {
+      "id": "demo-10",
+      "name": "Rose",
+      "hex": "#db9bac",
+      "enabled": true
+    },
+    {
+      "id": "demo-11",
+      "name": "Blush",
+      "hex": "#edc4c4",
+      "enabled": true
+    },
+    {
+      "id": "demo-12",
+      "name": "Berry",
+      "hex": "#9e4e66",
+      "enabled": true
+    },
+    {
+      "id": "demo-13",
+      "name": "Lavender",
+      "hex": "#aaa0c3",
+      "enabled": true
+    },
+    {
+      "id": "demo-14",
+      "name": "Violet",
+      "hex": "#75628e",
+      "enabled": true
+    },
+    {
+      "id": "demo-15",
+      "name": "Sand",
+      "hex": "#d3b18a",
+      "enabled": true
+    },
     {
       "id": "demo-16",
       "name": "Terracotta",
       "hex": "#b27b59",
       "enabled": true
     },
-    { "id": "demo-17", "name": "Umber", "hex": "#705547", "enabled": true },
-    { "id": "demo-18", "name": "Charcoal", "hex": "#343e3b", "enabled": true }
+    {
+      "id": "demo-17",
+      "name": "Umber",
+      "hex": "#705547",
+      "enabled": true
+    },
+    {
+      "id": "demo-18",
+      "name": "Charcoal",
+      "hex": "#343e3b",
+      "enabled": true
+    },
+    {
+      "id": "demo-19",
+      "name": "Unverified swatch 19",
+      "hex": "#f59f9f",
+      "enabled": true
+    },
+    {
+      "id": "demo-20",
+      "name": "Unverified swatch 20",
+      "hex": "#f5c49f",
+      "enabled": true
+    },
+    {
+      "id": "demo-21",
+      "name": "Unverified swatch 21",
+      "hex": "#f5e99f",
+      "enabled": true
+    },
+    {
+      "id": "demo-22",
+      "name": "Unverified swatch 22",
+      "hex": "#dcf59f",
+      "enabled": true
+    },
+    {
+      "id": "demo-23",
+      "name": "Unverified swatch 23",
+      "hex": "#b8f59f",
+      "enabled": true
+    },
+    {
+      "id": "demo-24",
+      "name": "Unverified swatch 24",
+      "hex": "#9ff5ab",
+      "enabled": true
+    },
+    {
+      "id": "demo-25",
+      "name": "Unverified swatch 25",
+      "hex": "#9ff5d0",
+      "enabled": true
+    },
+    {
+      "id": "demo-26",
+      "name": "Unverified swatch 26",
+      "hex": "#9ff5f5",
+      "enabled": true
+    },
+    {
+      "id": "demo-27",
+      "name": "Unverified swatch 27",
+      "hex": "#9fd0f5",
+      "enabled": true
+    },
+    {
+      "id": "demo-28",
+      "name": "Unverified swatch 28",
+      "hex": "#9fabf5",
+      "enabled": true
+    },
+    {
+      "id": "demo-29",
+      "name": "Unverified swatch 29",
+      "hex": "#b89ff5",
+      "enabled": true
+    },
+    {
+      "id": "demo-30",
+      "name": "Unverified swatch 30",
+      "hex": "#dc9ff5",
+      "enabled": true
+    },
+    {
+      "id": "demo-31",
+      "name": "Unverified swatch 31",
+      "hex": "#f59fe9",
+      "enabled": true
+    },
+    {
+      "id": "demo-32",
+      "name": "Unverified swatch 32",
+      "hex": "#f59fc4",
+      "enabled": true
+    },
+    {
+      "id": "demo-33",
+      "name": "Unverified swatch 33",
+      "hex": "#cc4747",
+      "enabled": true
+    },
+    {
+      "id": "demo-34",
+      "name": "Unverified swatch 34",
+      "hex": "#cc8047",
+      "enabled": true
+    },
+    {
+      "id": "demo-35",
+      "name": "Unverified swatch 35",
+      "hex": "#ccb947",
+      "enabled": true
+    },
+    {
+      "id": "demo-36",
+      "name": "Unverified swatch 36",
+      "hex": "#a6cc47",
+      "enabled": true
+    },
+    {
+      "id": "demo-37",
+      "name": "Unverified swatch 37",
+      "hex": "#6dcc47",
+      "enabled": true
+    },
+    {
+      "id": "demo-38",
+      "name": "Unverified swatch 38",
+      "hex": "#47cc5a",
+      "enabled": true
+    },
+    {
+      "id": "demo-39",
+      "name": "Unverified swatch 39",
+      "hex": "#47cc93",
+      "enabled": true
+    },
+    {
+      "id": "demo-40",
+      "name": "Unverified swatch 40",
+      "hex": "#47cccc",
+      "enabled": true
+    },
+    {
+      "id": "demo-41",
+      "name": "Unverified swatch 41",
+      "hex": "#4793cc",
+      "enabled": true
+    },
+    {
+      "id": "demo-42",
+      "name": "Unverified swatch 42",
+      "hex": "#475acc",
+      "enabled": true
+    },
+    {
+      "id": "demo-43",
+      "name": "Unverified swatch 43",
+      "hex": "#6d47cc",
+      "enabled": true
+    },
+    {
+      "id": "demo-44",
+      "name": "Unverified swatch 44",
+      "hex": "#a647cc",
+      "enabled": true
+    },
+    {
+      "id": "demo-45",
+      "name": "Unverified swatch 45",
+      "hex": "#cc47b9",
+      "enabled": true
+    },
+    {
+      "id": "demo-46",
+      "name": "Unverified swatch 46",
+      "hex": "#cc4780",
+      "enabled": true
+    },
+    {
+      "id": "demo-47",
+      "name": "Unverified swatch 47",
+      "hex": "#941e1e",
+      "enabled": true
+    },
+    {
+      "id": "demo-48",
+      "name": "Unverified swatch 48",
+      "hex": "#94501e",
+      "enabled": true
+    },
+    {
+      "id": "demo-49",
+      "name": "Unverified swatch 49",
+      "hex": "#94831e",
+      "enabled": true
+    },
+    {
+      "id": "demo-50",
+      "name": "Unverified swatch 50",
+      "hex": "#72941e",
+      "enabled": true
+    },
+    {
+      "id": "demo-51",
+      "name": "Unverified swatch 51",
+      "hex": "#3f941e",
+      "enabled": true
+    },
+    {
+      "id": "demo-52",
+      "name": "Unverified swatch 52",
+      "hex": "#1e942e",
+      "enabled": true
+    },
+    {
+      "id": "demo-53",
+      "name": "Unverified swatch 53",
+      "hex": "#1e9461",
+      "enabled": true
+    },
+    {
+      "id": "demo-54",
+      "name": "Unverified swatch 54",
+      "hex": "#1e9494",
+      "enabled": true
+    },
+    {
+      "id": "demo-55",
+      "name": "Unverified swatch 55",
+      "hex": "#1e6194",
+      "enabled": true
+    },
+    {
+      "id": "demo-56",
+      "name": "Unverified swatch 56",
+      "hex": "#1e2e94",
+      "enabled": true
+    },
+    {
+      "id": "demo-57",
+      "name": "Unverified swatch 57",
+      "hex": "#3f1e94",
+      "enabled": true
+    },
+    {
+      "id": "demo-58",
+      "name": "Unverified swatch 58",
+      "hex": "#721e94",
+      "enabled": true
+    },
+    {
+      "id": "demo-59",
+      "name": "Unverified swatch 59",
+      "hex": "#941e83",
+      "enabled": true
+    },
+    {
+      "id": "demo-60",
+      "name": "Unverified swatch 60",
+      "hex": "#941e50",
+      "enabled": true
+    }
   ]
 }

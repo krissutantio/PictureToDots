@@ -1,3 +1,4 @@
+import { dotMarks } from "./dots";
 import { geometry, labelFits, topLegend } from "./processing";
 import { letter, type Artwork, type Project } from "./types";
 export const escapeXML = (s: string) =>
@@ -36,28 +37,24 @@ export function artworkSVG(
   const s = p.settings,
     g = geometry(s, a.width, a.height);
   let body = `<rect width="${g.width}" height="${g.height}" fill="white"/><text x="${s.margin * 72}" y="${s.binding * 72 + 14}" font-size="8" fill="#49534c">${escapeXML(p.title.slice(0, 65))}${pageNumber ? ` · ${pageNumber}` : ""}</text>`;
-  const keyY = g.top - 10;
+  const legend = topLegend(a.palette, g.width, s.margin * 72);
+  const keyY = (s.margin + s.binding) * 72 + 15;
   if (s.mode === "dots" || s.lineLabels) {
-    topLegend(a.palette, g.width, s.margin * 72).forEach((group) => {
-      body += `<text x="${group.x}" y="${keyY}" font-size="4" fill="#8b9189">${group.label}</text>`;
+    legend.forEach((group) => {
+      const rowY = keyY + group.yOffset;
+      body += `<text x="${group.x}" y="${rowY}" font-size="4" fill="#8b9189">${group.label}</text>`;
       group.entries.forEach(({ index: i, x }) => {
         const m = a.palette[i];
-        body += `<circle cx="${x + 3}" cy="${keyY - 2}" r="2.5" fill="${colored ? m.hex : "white"}" stroke="#9caaa1" stroke-width=".4"/><text x="${x + 8}" y="${keyY}" font-size="5" fill="#6a736e">${letter(i)}</text>`;
+        body += `<circle cx="${x + 3}" cy="${rowY - 2}" r="2.5" fill="${colored ? m.hex : "white"}" stroke="#9caaa1" stroke-width=".4"/><text x="${x + 8}" y="${rowY}" font-size="5" fill="#6a736e">${letter(i)}</text>`;
       });
     });
   }
   if (a.mode === "dots") {
-    a.assignments.forEach((color, i) => {
-      const x =
-          g.left +
-          ((i % a.width) +
-            0.5 +
-            (s.stagger && Math.floor(i / a.width) % 2 ? 0.5 : 0)) *
-            g.pitch,
-        y = g.top + (Math.floor(i / a.width) + 0.5) * g.pitch;
-      body += `<g data-cell="${i}"><circle cx="${x}" cy="${y}" r="${g.diameter / 2}" fill="${colored ? (color >= 0 ? a.palette[color].hex : "white") : "white"}" stroke="${colored || color < 0 ? "none" : s.guide === "circles" ? "#bcc1ba" : "none"}" stroke-width=".35"/>`;
+    dotMarks(p.art!, s, g).forEach(({ cell: i, x, y, diameter, font }) => {
+      const color = a.assignments[i];
+      body += `<g data-cell="${i}" data-mark-size="${diameter}"><circle cx="${x}" cy="${y}" r="${diameter / 2}" fill="${colored ? (color >= 0 ? a.palette[color].hex : "white") : "white"}" stroke="${colored || color < 0 ? "none" : s.guide === "circles" ? "#bcc1ba" : "none"}" stroke-width=".35"/>`;
       if (!colored && s.labels && color >= 0)
-        body += `<text x="${x}" y="${y + g.font * 0.34}" text-anchor="middle" font-size="${g.font}" fill="#8b9189">${letter(color)}</text>`;
+        body += `<text x="${x}" y="${y + font * 0.34}" text-anchor="middle" font-size="${font}" fill="#8b9189">${letter(color)}</text>`;
       body += "</g>";
     });
   } else {

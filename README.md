@@ -29,9 +29,11 @@ Build before running the full browser suite: it also tests `dist/` under `/Pictu
 - Reviewable subject-focused crop suggestions and a draggable, resizable crop editor with keyboard nudging. Enable white paper margins to move in both axes at 1×.
 - Optional self-hosted face landmarks, object detection and scene classification, with generic saliency fallback. Color Accuracy, Balanced, Feature Preservation and Maximum Recognizability priorities share your selected grid and physical marker limits.
 - Source-coordinate importance brush, measured-feature protection and three-strategy comparison thumbnails with a printable comparison PDF. No generated facial landmarks or promised likeness.
-- Dot art with adjustable grid, staggered layout, physical dot diameter, letter-only reference style or outlined circles, paper-white regions, cleanup and Floyd–Steinberg dithering.
+- Dot art with regular/staggered placement or **Adaptive · varied positions & sizes**. Adaptive marks are smaller near measured detail and larger in flat areas, with irregular centers and shared preview/print geometry. Choose it under **Letter placement**; **Advanced settings → Dot diameter** controls its maximum size, and **Minimum usable dot** controls its minimum.
+- Adjustable sampling resolution, physical mark sizes, light-gray letters or outlined circles, paper-white regions, cleanup and Floyd–Steinberg dithering. Small regions that cannot receive an adaptive mark are flagged for review.
 - Traditional line art and color-by-letter art, based on edge-aware color segmentation, connected components, adjacent-region merging, closed contour tracing, shared-boundary simplification and interior label placement.
-- CIELAB/Delta E 76 matching and global palette subset selection. Near-duplicate inks are avoided. Difficulty and grid resolution are independent.
+- New work defaults to a **60-color budget**, with all 60 starter swatches enabled. **Use full marker set** restores that budget after selecting a smaller limit. Full-set matching considers every enabled entry; images need not use all 60. Smaller budgets use CIELAB/Delta E 76 subset selection and avoid near-duplicate inks. Difficulty and sampling resolution remain independent.
+- Unique A–Z/AA–BH keys, wrapped page legends and paginated color keys support all 60 colors. Old saved projects retain their color limits and regular placement.
 - Template, colored, source and side-by-side views; zoom and scroll-pan; palette-based dot painting and region recoloring; adjacent-region merging; undo/redo. Mode-specific values and valid mode edits survive switching.
 - Configurable page size, binding clearance, margins, bleed and dot-size limits. Unsafe dot templates are blocked from export; narrow line-art regions omit their labels and show a review warning.
 - PNG at 300 dpi, vector SVG and vector PDF; separate color-key PDFs and outlines-only line-art PDFs.
@@ -43,7 +45,7 @@ Build before running the full browser suite: it also tests `dist/` under `/Pictu
 
 ## Marker accuracy
 
-The supplied purchase link identifies the intended **Ohuhu Maui 60-color, water-based, fine/brush dual-tip set**. The complete official palette was not verified. The bundled dataset explicitly contains **18 demonstration colors, not an invented official 60-color mapping**. No manufacturer codes, current prices, availability, tip diameters or ink-accuracy claims are fabricated.
+The supplied purchase link identifies the intended **Ohuhu Maui 60-color, water-based, fine/brush dual-tip set**. The complete official code-to-color mapping remains unverified. The bundled dataset now contains **60 enabled demonstration swatches** so the full-color workflow works by default. These are **not the official Maui 60 ink colors** and contain no invented manufacturer codes. The [official product page](https://ohuhu.com/products/ohuhu-maui-60-colors-dual-tips-water-based-art-markers-brush-fineliner) confirms the set but does not supply the complete chart used by this app. No manufacturer codes, current prices, availability, tip diameters or ink-accuracy claims are fabricated.
 
 Before using physical markers:
 
@@ -107,6 +109,7 @@ This is a working first implementation, not a claim of parity with hand-illustra
 - Processing uses a normalized image up to 2,000 pixels on the long edge, while the original binary (including its metadata) is retained separately in saved projects and JSON backups. Large uploads increase storage and backup size; browser storage quotas still apply. HEIC conversion is not bundled; export HEIC to JPEG/PNG before uploading to unsupported browsers.
 - Calibration requires a flat, accurately cropped scan. Automatic chart detection and perspective correction remain future work.
 - The cover is a custom text-title cover, not a full cover-layout designer. The backing PDF is a dimensioned specification; the protective PDF contains a full-size cut outline.
+- Adaptive placement is a deterministic approximation, not a hand-illustrated reconstruction. Its sampling raster stays at your selected resolution; it can omit tiny color regions where physical marks cannot fit, and warns when that happens. Recoloring keeps positions fixed; changing mark sizes or sampling can change which source cells receive marks.
 - Output detail is processed at the selected resolution; exports use the same vectors rather than a second, higher-detail segmentation that could invalidate manual edits.
 - Local models are probabilistic: faces can be missed and categories can be wrong. A real rocket photo was classified as a drilling platform in verification. Hair preservation uses observed edges, not semantic hair segmentation. At low resolution and 4–8 colors, small faces can lose recognizable detail; inspect the comparison proof and crop closer when needed. Profile, glasses, varied-lighting and real group portraits still need validation.
 - The service worker provides offline revisits after a complete online production load. Vision assets load lazily from the same origin and become available offline after successful use; an uncached model falls back to generic saliency offline. There is no install prompt or full PWA manifest. Browser eviction or private browsing can remove cached data.
@@ -146,12 +149,13 @@ For a custom domain:
 4. Retain the default relative base or use `/`; do not retain an explicit repository-only base when serving at a custom-domain root.
 5. Enable HTTPS in Pages once DNS and certificate provisioning complete.
 
-No remote or GitHub account has been configured by this implementation; no public deployment is claimed.
+The repository remote is configured at [krissutantio/PictureToDots](https://github.com/krissutantio/PictureToDots), and the initial commit has been pushed. Public Pages deployment has not been verified in this chat.
 
 ## Source map
 
 - `src/processing.ts`: color science, palette optimization, cleanup, connected components, contour tracing, simplification and print geometry.
 - `src/processor.worker.ts`: isolated processing jobs; obsolete workers are terminated.
+- `src/dots.ts`: deterministic adaptive positions, variable physical mark sizes, collision checks and coverage advisories.
 - `src/crop.ts`, `src/CropEditor.tsx`, `src/input.ts`: reversible framing and source sampling.
 - `src/analysis.ts`, `src/analysis.worker.ts`, `public/vision/`: saliency and self-hosted model inference in workers.
 - `src/features.ts`, `src/ImportanceEditor.tsx`, `src/StrategyComparison.tsx`: importance edits, structure-aware conversion and comparison proofs.

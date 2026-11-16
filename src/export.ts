@@ -5,6 +5,7 @@ import {
   type PDFPage,
   type PDFFont,
 } from "pdf-lib";
+import { dotMarks } from "./dots";
 import JSZip from "jszip";
 import {
   geometry,
@@ -58,12 +59,16 @@ export async function artworkPDF(
     const a = editedArt(p);
     if (!a) continue;
     const s = p.settings;
-    if (s.mode === "dots" && printWarnings(s, a).length)
+    if (s.mode === "dots" && printWarnings(s, p.art!).length)
       throw Error(
         "This dot page is too dense to print safely. Reduce resolution or increase its size.",
       );
     const g = geometry(s, a.width, a.height),
       bleed = s.bleed * 72;
+    if (g.pitch <= 0)
+      throw Error(
+        "Margins and color legend leave no printable artwork area. Increase page size or reduce margins/colors.",
+      );
     const page = doc.addPage([g.width + bleed * 2, g.height + bleed * 2]);
     page.setTrimBox(bleed, bleed, g.width, g.height);
     page.setBleedBox(0, 0, g.width + bleed * 2, g.height + bleed * 2);
@@ -79,50 +84,47 @@ export async function artworkPDF(
     );
     if (s.mode === "dots" || s.lineLabels)
       topLegend(a.palette, g.width, s.margin * 72).forEach((group) => {
-        text(page, font, group.label, x(group.x), y(g.top - 10), 4);
+        const rowY = (s.margin + s.binding) * 72 + 15 + group.yOffset;
+        text(page, font, group.label, x(group.x), y(rowY), 4);
         group.entries.forEach(({ index: i, x: xx }) => {
           const m = a.palette[i];
           page.drawCircle({
             x: x(xx + 3),
-            y: y(g.top - 12),
+            y: y(rowY - 2),
             size: 2.5,
             color: colored ? color(m.hex) : pdfRGB(1, 1, 1),
             borderColor: gray,
             borderWidth: 0.4,
           });
-          text(page, font, letter(i), x(xx + 8), y(g.top - 10), 5);
+          text(page, font, letter(i), x(xx + 8), y(rowY), 5);
         });
       });
     if (a.mode === "dots") {
-      a.assignments.forEach((n, i) => {
-        if (n < 0) return;
-        const xx =
-            g.left +
-            ((i % a.width) +
-              0.5 +
-              (s.stagger && Math.floor(i / a.width) % 2 ? 0.5 : 0)) *
-              g.pitch,
-          yy = g.top + (Math.floor(i / a.width) + 0.5) * g.pitch;
-        if (colored || s.guide === "circles")
-          page.drawCircle({
-            x: x(xx),
-            y: y(yy),
-            size: g.diameter / 2,
-            color: colored ? color(a.palette[n].hex) : pdfRGB(1, 1, 1),
-            borderColor: gray,
-            borderWidth: colored ? 0 : 0.35,
-          });
-        if (!colored && s.labels) {
-          const label = letter(n);
-          page.drawText(label, {
-            x: x(xx) - font.widthOfTextAtSize(label, g.font) / 2,
-            y: y(yy) - g.font * 0.34,
-            font,
-            size: g.font,
-            color: gray,
-          });
-        }
-      });
+      dotMarks(p.art!, s, g).forEach(
+        ({ cell, x: xx, y: yy, diameter, font: size }) => {
+          const n = a.assignments[cell];
+          if (n < 0) return;
+          if (colored || s.guide === "circles")
+            page.drawCircle({
+              x: x(xx),
+              y: y(yy),
+              size: diameter / 2,
+              color: colored ? color(a.palette[n].hex) : pdfRGB(1, 1, 1),
+              borderColor: gray,
+              borderWidth: colored ? 0 : 0.35,
+            });
+          if (!colored && s.labels) {
+            const label = letter(n);
+            page.drawText(label, {
+              x: x(xx) - font.widthOfTextAtSize(label, size) / 2,
+              y: y(yy) - size * 0.34,
+              font,
+              size,
+              color: gray,
+            });
+          }
+        },
+      );
     } else
       for (const r of a.regions) {
         if (s.background === "remove" && r.color < 0) continue;
@@ -187,98 +189,82 @@ export async function artworkPDF(
 export async function keyPDF(projects: Project[]) {
   const { doc, font } = await setup();
   if (projects.length > 1) {
-    for (let offset = 0; offset < projects.length; offset += 15) {
-      const page = doc.addPage([360, 504]);
-      text(page, font, "YOUR NOTEBOOK COLOR STORY", 22, 450, 12);
-      text(
-        page,
-        font,
-        "PAGE                       DARK INKS TO LIGHT INKS",
-        22,
-        429,
-        6,
-      );
-      projects.slice(offset, offset + 15).forEach((p, row) => {
-        const a = editedArt(p);
-        if (!a) return;
-        const y = 407 - row * 23;
-        text(page, font, `pg. ${offset + row + 1}`, 22, y, 7);
-        const step = 260 / Math.max(1, a.palette.length);
-        a.palette.forEach((m, j) => {
-          page.drawCircle({
-            x: 76 + j * step,
-            y: y + 2,
-            size: 2.6,
-            color: color(m.hex),
-          });
-          text(page, font, letter(j), 81 + j * step, y, 5);
-        });
-        page.drawLine({
-          start: { x: 22, y: y - 9 },
-          end: { x: 338, y: y - 9 },
-          thickness: 0.3,
-          color: gray,
-        });
+    let page: PDFPage | undefined,
+      yy = 0;
+    for (const [i, p] of projects.entries()) {
+      const a = editedArt(p);
+      if (!a) continue;
+      const height = Math.ceil(a.palette.length / 12) * 14 + 18;
+      if (!page || yy - height < 45) {
+        page = doc.addPage([360, 504]);
+        text(page, font, "YOUR NOTEBOOK COLOR STORY", 22, 450, 12);
+        text(
+          page,
+          font,
+          "Full marker names and test spaces follow.",
+          22,
+          432,
+          7,
+        );
+        yy = 410;
+      }
+      text(page, font, `pg. ${i + 1}`, 22, yy, 7);
+      a.palette.forEach((m, j) => {
+        const x = 78 + (j % 12) * 22,
+          y = yy - Math.floor(j / 12) * 14;
+        page!.drawCircle({ x, y: y + 2, size: 2.6, color: color(m.hex) });
+        text(page!, font, letter(j), x + 5, y, 5);
       });
-      text(
-        page,
-        font,
-        "Full marker names and test-swatch spaces follow on the next pages.",
-        22,
-        28,
-        6,
-      );
+      yy -= height;
     }
   }
   for (const [i, p] of projects.entries()) {
     const a = editedArt(p);
     if (!a) continue;
-    const page = doc.addPage([p.settings.width * 72, p.settings.height * 72]);
-    text(
-      page,
-      font,
-      `COLOR KEY | PAGE ${i + 1}`,
-      22,
-      page.getHeight() - 60,
-      13,
-    );
-    text(page, font, p.title.slice(0, 55), 22, page.getHeight() - 78, 9);
-    const step = Math.min(
-      20,
-      (page.getHeight() - 145) / Math.max(1, a.palette.length),
-    );
-    a.palette.forEach((m, j) => {
-      const yy = page.getHeight() - 104 - j * step;
-      page.drawCircle({ x: 29, y: yy, size: 4, color: color(m.hex) });
+    const height = p.settings.height * 72,
+      width = p.settings.width * 72;
+    const rows = Math.max(1, Math.floor((height - 145) / 20));
+    for (let offset = 0; offset < a.palette.length; offset += rows) {
+      const page = doc.addPage([width, height]);
       text(
         page,
         font,
-        `${letter(j)}  ${m.code || "No verified code"} - ${m.name}`.slice(
-          0,
-          65,
-        ),
-        42,
-        yy - 3,
-        7,
-        page.getWidth() - 93,
+        `COLOR KEY | PAGE ${i + 1}${offset ? " (continued)" : ""}`,
+        22,
+        height - 60,
+        11,
       );
-      page.drawRectangle({
-        x: page.getWidth() - 43,
-        y: yy - 5,
-        width: 20,
-        height: 10,
-        borderColor: gray,
-        borderWidth: 0.4,
+      text(page, font, p.title.slice(0, 55), 22, height - 78, 9);
+      a.palette.slice(offset, offset + rows).forEach((m, j) => {
+        const yy = height - 104 - j * 20;
+        page.drawCircle({ x: 29, y: yy, size: 4, color: color(m.hex) });
+        text(
+          page,
+          font,
+          `${letter(offset + j)}  ${m.code || "Unverified code"} - ${m.name}`,
+          42,
+          yy - 3,
+          7,
+          width - 93,
+        );
+        page.drawRectangle({
+          x: width - 43,
+          y: yy - 5,
+          width: 20,
+          height: 10,
+          borderColor: gray,
+          borderWidth: 0.4,
+        });
       });
-    });
-    text(
-      page,
-      font,
-      "Digital swatches are approximate. Test your ink on this paper.",
-      22,
-      28,
-      6,
-    );
+      text(
+        page,
+        font,
+        "Digital swatches are approximate. Test your ink on this paper.",
+        22,
+        28,
+        6,
+      );
+    }
   }
   return doc.save();
 }

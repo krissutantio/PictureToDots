@@ -59,7 +59,7 @@ function validateProjectData(p: unknown): p is Project {
   if (!x.palette.markers.every(validMarker)) return false;
   const limits: Record<string, [number, number]> = {
     columns: [12, 100],
-    colors: [1, 26],
+    colors: [1, 60],
     lineDetail: [48, 160],
     minRegion: [1, 1000],
     regionMm2: [1, 60],
@@ -98,7 +98,7 @@ function validateProjectData(p: unknown): p is Project {
       a.height < 1 ||
       a.height > 2000 ||
       !Array.isArray(a.palette) ||
-      a.palette.length > 26 ||
+      a.palette.length > 60 ||
       !a.palette.length ||
       !a.palette.every(validMarker) ||
       !Array.isArray(a.assignments) ||
@@ -164,7 +164,7 @@ function validateProjectData(p: unknown): p is Project {
         /^\d+$/.test(k) &&
         Number.isInteger(v) &&
         v >= -1 &&
-        v < (x.art?.palette.length || 26),
+        v < (x.art?.palette.length || 60),
     )
   )
     return false;
@@ -198,6 +198,7 @@ function validateProjectData(p: unknown): p is Project {
   )
     return false;
   for (const [key, values] of Object.entries({
+    dotLayout: ["regular", "adaptive"],
     facialDetail: ["Low", "Medium", "High"],
     subjectKind: [
       "Auto",

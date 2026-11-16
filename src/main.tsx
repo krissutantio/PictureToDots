@@ -70,8 +70,12 @@ import { analyzeSource } from "./analysis";
 import { priorities, portraitPreset } from "./features";
 import { rotatePoint } from "./crop";
 import type { SubjectKind } from "./subject-types";
+import type { Marker } from "./types";
+import { dotMarks, dotPlacementWarnings } from "./dots";
 import "./style.css";
 const presentationKeys = new Set([
+  "dotLayout",
+  "stagger",
   "labels",
   "lineLabels",
   "diameter",
@@ -156,8 +160,43 @@ function App() {
     dragging = useRef(false);
   const s = project.settings;
   const art = editedArt(project);
+  const placedDots =
+    project.art && s.mode === "dots"
+      ? dotMarks(
+          project.art,
+          s,
+          geometry(s, project.art.width, project.art.height),
+        )
+      : [];
+  const fontRange = placedDots.reduce(
+    (range, mark) => [
+      Math.min(range[0], mark.font),
+      Math.max(range[1], mark.font),
+    ],
+    [Infinity, 0],
+  );
+  const guideSize =
+    s.mode === "dots"
+      ? !s.labels
+        ? "Off"
+        : placedDots.length
+          ? `${fontRange[0].toFixed(1)}${fontRange[1] - fontRange[0] > 0.05 ? `–${fontRange[1].toFixed(1)}` : ""} pt`
+          : "—"
+      : s.lineLabels
+        ? "5.0 pt"
+        : "Off";
   const warnings = art
-    ? [...printWarnings(s, art), ...(art.diagnostics?.metrics.warnings || [])]
+    ? [
+        ...printWarnings(s, project.art!),
+        ...(s.mode === "dots"
+          ? dotPlacementWarnings(
+              project.art!,
+              s,
+              geometry(s, art.width, art.height),
+            )
+          : []),
+        ...(art.diagnostics?.metrics.warnings || []),
+      ]
     : [];
   const settings = (patch: Partial<Settings>) => {
     setPaint(null);
@@ -213,7 +252,25 @@ function App() {
       .then(([items, n, p]) => {
         setSaved(items);
         if (n) setNotebook(n);
-        if (p) setProject((v) => ({ ...v, palette: p }));
+        if (p) {
+          const untouched =
+            p.name === "Ohuhu Maui 60 — calibration workspace" &&
+            p.paper === "Uncoated paper, not yet calibrated" &&
+            !p.verified &&
+            p.markers?.length === 18 &&
+            p.markers.every(
+              (m: Marker, i: number) =>
+                m.id === paletteData.markers[i].id &&
+                m.hex === paletteData.markers[i].hex &&
+                m.enabled &&
+                m.name === paletteData.markers[i].name &&
+                !m.code,
+            );
+          setProject((v) => ({
+            ...v,
+            palette: untouched ? initialPalette : p,
+          }));
+        }
         setReady(true);
       })
       .catch(report);
@@ -581,7 +638,9 @@ function App() {
   }
   const exportAllowed = !!art && !busy && !exporting;
   const dotBlocked =
-    s.mode === "dots" && !!art && printWarnings(s, art).length > 0;
+    !!art &&
+    (geometry(s, art.width, art.height).pitch <= 0 ||
+      (s.mode === "dots" && printWarnings(s, project.art!).length > 0));
   function ExportButtons() {
     return (
       <>
@@ -989,10 +1048,34 @@ function App() {
                     ))}
                   </select>
                 </label>
+                {s.mode === "dots" && (
+                  <label className="field">
+                    Letter placement
+                    <select
+                      aria-label="Letter placement"
+                      value={s.dotLayout || "regular"}
+                      onChange={(e) =>
+                        settings({
+                          dotLayout: e.target.value as Settings["dotLayout"],
+                        })
+                      }
+                    >
+                      <option value="regular">Regular grid</option>
+                      <option value="adaptive">
+                        Adaptive · varied positions & sizes
+                      </option>
+                    </select>
+                    <small>
+                      {s.dotLayout === "adaptive"
+                        ? "Smaller marks around detail, larger marks in flat areas. Uses your minimum and maximum dot sizes."
+                        : "Even spacing with optional staggered rows."}
+                    </small>
+                  </label>
+                )}
                 {s.mode === "dots" ? (
                   <>
                     <label className="field">
-                      Grid resolution
+                      Sampling resolution
                       <select
                         aria-label="Grid resolution"
                         value={
@@ -1063,11 +1146,22 @@ function App() {
                     )}
                   </>
                 )}
-                {slider("Maximum colors", "colors", 2, 18)}
+                {slider("Maximum colors", "colors", 2, 60)}
+                <button
+                  className="text-button"
+                  onClick={() => settings({ colors: 60 })}
+                >
+                  Use full marker set
+                </button>
                 <div className="tips">
                   <Leaf size={16} />
                   <span>
-                    {s.colors} colors, a little creative pause.
+                    Up to{" "}
+                    {Math.min(
+                      s.colors,
+                      project.palette.markers.filter((m) => m.enabled).length,
+                    )}{" "}
+                    enabled colors.
                     <small>{s.tip} selected · either mode is available.</small>
                   </span>
                 </div>
@@ -1219,6 +1313,13 @@ function App() {
                     {s.mode === "dots" && (
                       <>
                         {slider("Dot diameter", "diameter", 0.8, 5, 0.1, " mm")}
+                        {s.dotLayout === "adaptive" && (
+                          <p className="hint">
+                            Dot diameter is the maximum in adaptive placement.
+                            Increase it for a wider size range; your minimum
+                            stays fixed.
+                          </p>
+                        )}
                         {number(
                           "Minimum usable dot (mm)",
                           "minDot",
@@ -1229,6 +1330,7 @@ function App() {
                         <label className="check">
                           <input
                             type="checkbox"
+                            disabled={s.dotLayout === "adaptive"}
                             checked={s.stagger}
                             onChange={(e) =>
                               settings({ stagger: e.target.checked })
@@ -1615,7 +1717,13 @@ function App() {
                     <dd>
                       {art
                         ? (s.mode === "dots"
-                            ? art.assignments.filter((i) => i >= 0).length
+                            ? dotMarks(
+                                project.art!,
+                                s,
+                                geometry(s, art.width, art.height),
+                              ).filter(
+                                (mark) => art.assignments[mark.cell] >= 0,
+                              ).length
                             : art.regions.length
                           ).toLocaleString()
                         : "—"}
@@ -1633,11 +1741,7 @@ function App() {
                   </div>
                   <div>
                     <dt>Guide size</dt>
-                    <dd>
-                      {art
-                        ? `${s.mode === "dots" ? geometry(s, art.width, art.height).font.toFixed(1) : "5.0"} pt`
-                        : "—"}
-                    </dd>
+                    <dd>{art ? guideSize : "—"}</dd>
                   </div>
                 </dl>
                 {warnings.map((w) => (

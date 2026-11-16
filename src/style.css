@@ -612,6 +612,9 @@ nav button.active {
   margin: 8px 0 14px;
 }
 .legend {
+  max-height: 360px;
+  overflow-y: auto;
+  padding-right: 5px;
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -638,7 +641,8 @@ nav button.active {
 .legend strong {
   font-size: 10px;
   font-weight: 500;
-  width: 10px;
+  width: 18px;
+  flex-shrink: 0;
 }
 .legend button > span:not(.swatch) {
   font-size: 10px;

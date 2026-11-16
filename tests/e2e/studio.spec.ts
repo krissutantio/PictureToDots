@@ -118,7 +118,7 @@ test("mobile layout and marker management", async ({ page }) => {
   ).toBe(true);
   await page.getByRole("button", { name: "Marker Sets", exact: true }).click();
   await page.getByRole("button", { name: "Add a marker", exact: true }).click();
-  await expect(page.getByLabel("Marker 19 name", { exact: true })).toHaveValue(
+  await expect(page.getByLabel("Marker 61 name", { exact: true })).toHaveValue(
     "My marker",
   );
   const pending = page.waitForEvent("download");

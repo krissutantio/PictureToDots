@@ -10,4 +10,7 @@
 - **Shared boundaries:** contour simplification must pin junctions on both neighboring regions; dropping collinear junction points previously created gaps.
 - **Manual edits survive:** presentation-only settings must not re-segment artwork or erase region merges. Reopened projects restore their saved art.
 - **Physical truth:** PDF uses points, line/dot limits reflect real page geometry, narrow labels are omitted/flagged, RGB is not certified CMYK.
-- **Deployment stays explicit:** no Git remote exists yet. Shipping a Pages workflow is not the same as a successful public deployment.
+- **Deployment stays explicit:** `origin` is now `https://github.com/krissutantio/PictureToDots.git`; the initial commit was pushed with user approval. Deployment status has not been verified. Future publishing remains explicit.
+
+- **Adaptive layout is opt-in:** irregular centers and variable sizes are deterministic packing from measured color/importance, with marker/letter collision checks. Recoloring uses source cell IDs and does not regenerate positions. Resolution remains a sampling budget; skipped tiny regions are reported.
+- **Full palette means eligibility:** new work has all 60 enabled starter colors available, with no requirement to force every color into an image. These are unverified demonstration swatches, not an official Maui chart. Old/custom palettes remain unchanged. Two-letter labels and paginated keys remove the old 26-color ceiling.
