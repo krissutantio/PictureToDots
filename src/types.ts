@@ -25,6 +25,7 @@ export type Settings = {
   columns: number;
   stagger: boolean;
   dotLayout: "regular" | "adaptive";
+  dotLayoutVersion: 1 | 2;
   diameter: number;
   minDot: number;
   labels: boolean;
@@ -83,6 +84,12 @@ export type Artwork = {
   palette: Marker[];
   regions: Region[];
   mode: "dots" | "lines";
+  dotField?: {
+    width: number;
+    height: number;
+    assignments: number[];
+    importance?: number[];
+  };
   diagnostics?: {
     importance: number[];
     edges: number[];
@@ -133,6 +140,7 @@ export const defaults: Settings = {
   columns: 36,
   stagger: true,
   dotLayout: "regular",
+  dotLayoutVersion: 2,
   diameter: 2,
   minDot: 1.5,
   labels: true,
@@ -188,3 +196,5 @@ export function letter(n: number): string {
     value = String.fromCharCode(65 + ((i - 1) % 26)) + value;
   return value;
 }
+
+export type NotebookEntry = { id: string; updated: number; notebook: Notebook };

@@ -24,6 +24,7 @@ import {
   ZoomOut,
   Save,
   Leaf,
+  Home as HomeIcon,
 } from "lucide-react";
 import {
   defaults,
@@ -33,6 +34,7 @@ import {
   type Settings,
   type Palette,
   type Notebook,
+  type NotebookEntry,
   type Artwork,
 } from "./types";
 import paletteData from "./palettes.json";
@@ -72,9 +74,12 @@ import { rotatePoint } from "./crop";
 import type { SubjectKind } from "./subject-types";
 import type { Marker } from "./types";
 import { dotMarks, dotPlacementWarnings } from "./dots";
+import { StepPanel } from "./StepPanel";
+import { Home } from "./Home";
 import "./style.css";
 const presentationKeys = new Set([
   "dotLayout",
+  "dotLayoutVersion",
   "stagger",
   "labels",
   "lineLabels",
@@ -89,6 +94,9 @@ const variantKey = (p: Project, settings = p.settings) =>
   JSON.stringify([
     p.id,
     p.image,
+    settings.mode === "dots" &&
+      settings.dotLayout === "adaptive" &&
+      settings.dotLayoutVersion === 2,
     Object.fromEntries(
       Object.entries(settings).filter(([key]) => !presentationKeys.has(key)),
     ),
@@ -135,15 +143,32 @@ function App() {
   const lastAnalysisRequest = useRef(0);
   const [comparisons, setComparisons] = useState<Record<string, Artwork>>({});
   const [project, setProject] = useState<Project>(() => makeProject());
-  const [tab, setTab] = useState("Create");
+  const [tab, setTab] = useState("Home");
+  const [activeStep, setActiveStep] = useState(1);
+  const [mobilePanel, setMobilePanel] = useState("steps");
+  const [notebookId, setNotebookId] = useState("default");
+  const [notebookLibrary, setNotebookLibrary] = useState<NotebookEntry[]>([]);
   const [preview, setPreview] = useState("Colored");
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
-  const [advanced, setAdvanced] = useState(false);
   const [saved, setSaved] = useState<Project[]>([]);
   const [notebook, setNotebook] = useState<Notebook>(initialNotebook);
   const [zoom, setZoom] = useState(1);
+  const stageRef = useRef<HTMLDivElement>(null);
+  const [stageSize, setStageSize] = useState({ width: 600, height: 600 });
+  useEffect(() => {
+    const node = stageRef.current;
+    if (!node) return;
+    const observer = new ResizeObserver(([entry]) =>
+      setStageSize({
+        width: entry.contentRect.width,
+        height: entry.contentRect.height,
+      }),
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [tab, preview]);
   const [paint, setPaint] = useState<number | null>(null);
   const [merge, setMerge] = useState(false);
   const [firstRegion, setFirstRegion] = useState<number | null>(null);
@@ -248,10 +273,27 @@ function App() {
       getProjects(),
       getPreference("notebook"),
       getPreference("palette"),
+      getPreference("notebooks"),
+      getPreference("activeNotebook"),
     ])
-      .then(([items, n, p]) => {
+      .then(([items, n, p, library, activeId]) => {
         setSaved(items);
-        if (n) setNotebook(n);
+        const entries: NotebookEntry[] = Array.isArray(library)
+          ? library.filter(
+              (entry) =>
+                entry &&
+                typeof entry.id === "string" &&
+                entry.notebook &&
+                Array.isArray(entry.notebook.pages),
+            )
+          : [];
+        setNotebookLibrary(entries);
+        const selected =
+          entries.find((entry) => entry.id === activeId) || entries[0];
+        if (selected) {
+          setNotebookId(selected.id);
+          setNotebook(selected.notebook);
+        } else if (n) setNotebook(n);
         if (p) {
           const untouched =
             p.name === "Ohuhu Maui 60 — calibration workspace" &&
@@ -276,8 +318,22 @@ function App() {
       .catch(report);
   }, []);
   useEffect(() => {
-    if (ready) savePreference("notebook", notebook).catch(report);
-  }, [notebook, ready]);
+    if (!ready) return;
+    savePreference("notebook", notebook).catch(report);
+    savePreference("activeNotebook", notebookId).catch(report);
+    setNotebookLibrary((items) => [
+      {
+        id: notebookId,
+        updated: Date.now(),
+        notebook: structuredClone(notebook),
+      },
+      ...items.filter((item) => item.id !== notebookId),
+    ]);
+  }, [notebook, notebookId, ready]);
+  useEffect(() => {
+    if (ready && notebookLibrary.length)
+      savePreference("notebooks", notebookLibrary).catch(report);
+  }, [notebookLibrary, ready]);
   useEffect(() => {
     if (!notice) return;
     const id = setTimeout(() => setNotice(""), 5000);
@@ -433,14 +489,46 @@ function App() {
       setFuture([]);
       setTab("Create");
       setCropOpen(true);
+      setActiveStep(1);
     } catch (e) {
       report(e);
     }
   }
+  function newPage() {
+    setProject({
+      ...makeProject("Untitled page"),
+      palette: structuredClone(project.palette),
+    });
+    setPast([]);
+    setFuture([]);
+    setPaint(null);
+    setActiveStep(1);
+    setMobilePanel("steps");
+    setTab("Create");
+  }
+  function newNotebook() {
+    setNotebookId(crypto.randomUUID());
+    setNotebook({
+      ...structuredClone(initialNotebook),
+      title: "Untitled notebook",
+    });
+    setTab("Notebook Builder");
+  }
+  function editNotebook(entry: NotebookEntry) {
+    setNotebookId(entry.id);
+    setNotebook(structuredClone(entry.notebook));
+    setTab("Notebook Builder");
+  }
   function open(p: Project) {
     const restored = {
       ...structuredClone(p),
-      settings: { ...defaults, ...p.settings },
+      settings: {
+        ...defaults,
+        ...p.settings,
+        dotLayoutVersion:
+          p.settings.dotLayoutVersion ??
+          (p.settings.dotLayout === "adaptive" ? 1 : 2),
+      },
     };
     if (restored.art)
       restored.variants = {
@@ -452,6 +540,8 @@ function App() {
         },
       };
     setProject(restored);
+    setActiveStep(2);
+    setMobilePanel("preview");
     setPast([]);
     setFuture([]);
     setPaint(null);
@@ -470,6 +560,7 @@ function App() {
           )
         )
           throw Error("Invalid notebook backup.");
+        setNotebookId(crypto.randomUUID());
         setNotebook({ ...initialNotebook, ...value.notebook });
         setTab("Notebook Builder");
       } else {
@@ -628,7 +719,17 @@ function App() {
       edit((p) => ({ ...p, edits: { ...p.edits, [id]: paint } }));
     else {
       const n =
-        s.mode === "dots" ? art!.assignments[id] : art!.regions[id].color;
+        s.mode === "dots"
+          ? (() => {
+              const mark = placedDots.find((m) => m.id === id);
+              return mark
+                ? (project.edits[id] ??
+                    project.edits[mark.cell] ??
+                    mark.color ??
+                    art!.assignments[mark.cell])
+                : -1;
+            })()
+          : art!.regions[id].color;
       setNotice(
         n < 0
           ? "Uncolored paper"
@@ -758,15 +859,22 @@ function App() {
       />
     </label>
   );
+  const fittedWidth = Math.max(
+    80,
+    Math.min(
+      (stageSize.width - 36) / (preview === "Compare" ? 2 : 1),
+      ((stageSize.height - 55) * s.width) / s.height,
+    ),
+  );
   return (
-    <>
-      <header>
+    <div className={`app-shell ${tab === "Create" ? "is-editor" : ""}`}>
+      <header className="app-header">
         <a
           className="brand"
           href="#"
           onClick={(e) => {
             e.preventDefault();
-            setTab("Create");
+            setTab("Home");
           }}
         >
           <span className="brand-mark">
@@ -778,6 +886,7 @@ function App() {
         </a>
         <nav aria-label="Main navigation">
           {[
+            "Home",
             "Create",
             "My Projects",
             "Marker Sets",
@@ -786,10 +895,25 @@ function App() {
           ].map((t) => (
             <button
               key={t}
+              aria-label={t}
+              title={t}
               className={tab === t ? "active" : ""}
               onClick={() => setTab(t)}
             >
-              {t}
+              {React.createElement(
+                (
+                  {
+                    Home: HomeIcon,
+                    Create: Plus,
+                    "My Projects": FolderOpen,
+                    "Marker Sets": Leaf,
+                    "Notebook Builder": BookOpen,
+                    "Manufacturing Guide": SlidersHorizontal,
+                  } as Record<string, typeof Plus>
+                )[t],
+                { size: 16 },
+              )}
+              <span>{t}</span>
             </button>
           ))}
         </nav>
@@ -850,13 +974,21 @@ function App() {
           <button aria-label="Dismiss message">×</button>
         </div>
       )}
+      {tab === "Home" && (
+        <Home
+          notebooks={notebookLibrary}
+          onNew={newNotebook}
+          onEdit={editNotebook}
+          onPage={newPage}
+        />
+      )}
       {tab === "Create" ? (
         <>
           <section className="workspace-heading">
             <div>
               <div className="eyebrow">MAKE SOMETHING SLOW & BEAUTIFUL</div>
-              <h1>A photograph. A thousand little colors.</h1>
-              <p>Turn a favorite moment into artwork you can make your own.</p>
+              <h1>Your coloring studio</h1>
+              <p>{notebook.title}</p>
             </div>
             <div className="heading-actions">
               <button
@@ -883,13 +1015,38 @@ function App() {
               </button>
             </div>
           </section>
-          <main className="workspace">
+          <div className="mobile-workspace-tabs">
+            <button
+              className={mobilePanel === "steps" ? "active" : ""}
+              onClick={() =>
+                setMobilePanel(mobilePanel === "steps" ? "preview" : "steps")
+              }
+            >
+              Steps
+            </button>
+            <button
+              className={mobilePanel === "preview" ? "active" : ""}
+              onClick={() => setMobilePanel("preview")}
+            >
+              Preview
+            </button>
+            <button
+              className={mobilePanel === "export" ? "active" : ""}
+              onClick={() =>
+                setMobilePanel(mobilePanel === "export" ? "preview" : "export")
+              }
+            >
+              Colors & export
+            </button>
+          </div>
+          <main className={`workspace mobile-${mobilePanel}`}>
             <aside className="controls">
-              <section>
-                <div className="section-title">
-                  <span className="step">01</span>
-                  <h2>Your photograph</h2>
-                </div>
+              <StepPanel
+                step={1}
+                title="Your photograph"
+                active={activeStep}
+                onOpen={setActiveStep}
+              >
                 <button
                   className="upload-card"
                   onClick={() => upload.current?.click()}
@@ -917,6 +1074,8 @@ function App() {
                         const p = makeProject(`${k} study`, k);
                         setProject({ ...p, palette: project.palette });
                         setPast([]);
+                        setActiveStep(2);
+                        setMobilePanel("preview");
                       }}
                     >
                       {k === "Flowers"
@@ -980,12 +1139,19 @@ function App() {
                     <small>{project.analysis.message}</small>
                   </p>
                 )}
-              </section>
-              <section>
-                <div className="section-title">
-                  <span className="step">02</span>
-                  <h2>Make it your style</h2>
-                </div>
+                <button
+                  className="primary full"
+                  onClick={() => setActiveStep(2)}
+                >
+                  Continue to style <ChevronRight size={14} />
+                </button>
+              </StepPanel>
+              <StepPanel
+                step={2}
+                title="Style & detail"
+                active={activeStep}
+                onOpen={setActiveStep}
+              >
                 <div className="mode-switch">
                   <button
                     className={s.mode === "dots" ? "selected" : ""}
@@ -1057,19 +1223,28 @@ function App() {
                       onChange={(e) =>
                         settings({
                           dotLayout: e.target.value as Settings["dotLayout"],
+                          dotLayoutVersion: 2,
                         })
                       }
                     >
                       <option value="regular">Regular grid</option>
                       <option value="adaptive">
-                        Adaptive · varied positions & sizes
+                        Adaptive · free positions & sizes
                       </option>
                     </select>
                     <small>
                       {s.dotLayout === "adaptive"
-                        ? "Smaller marks around detail, larger marks in flat areas. Uses your minimum and maximum dot sizes."
+                        ? "Free placement follows measured detail, with individual letter sizes inside your physical limits."
                         : "Even spacing with optional staggered rows."}
                     </small>
+                    {s.dotLayout === "adaptive" && s.dotLayoutVersion === 1 && (
+                      <button
+                        className="text-button"
+                        onClick={() => settings({ dotLayoutVersion: 2 })}
+                      >
+                        Upgrade to free placement
+                      </button>
+                    )}
                   </label>
                 )}
                 {s.mode === "dots" ? (
@@ -1165,255 +1340,243 @@ function App() {
                     <small>{s.tip} selected · either mode is available.</small>
                   </span>
                 </div>
-              </section>
-              <section>
-                <div className="section-title">
-                  <span className="step">03</span>
-                  <h2>Make it yours</h2>
-                </div>
-                <button
-                  className="disclosure"
-                  onClick={() => setAdvanced(!advanced)}
-                >
-                  <SlidersHorizontal size={15} /> Advanced settings
-                  <span>{advanced ? "−" : "+"}</span>
+                <button className="full" onClick={() => setActiveStep(3)}>
+                  Fine-tune & page settings <ChevronRight size={14} />
                 </button>
-                {advanced && (
-                  <div className="advanced">
-                    <h3>Feature-aware simplification</h3>
-                    <label className="field">
-                      Main subject
-                      <select
-                        aria-label="Main subject"
-                        value={s.subjectKind}
-                        onChange={(e) =>
-                          settings({
-                            subjectKind: e.target.value as SubjectKind,
-                          })
-                        }
-                      >
-                        {[
-                          "Auto",
-                          "Portrait",
-                          "Animal",
-                          "Flower / plant",
-                          "Building",
-                          "Landscape",
-                          "General object",
-                        ].map((k) => (
-                          <option key={k}>{k}</option>
-                        ))}
-                      </select>
-                    </label>
-                    {slider(
-                      "Feature preservation strength",
-                      "featureStrength",
-                      0,
-                      100,
-                    )}
-                    {slider(
-                      "Background simplification",
-                      "backgroundSimplification",
-                      0,
-                      100,
-                    )}
-                    {slider("Edge emphasis", "edgeEmphasis", 0, 100)}
-                    {slider(
-                      "Local contrast enhancement",
-                      "localContrast",
-                      0,
-                      100,
-                    )}
-                    {slider("Texture removal", "textureRemoval", 0, 100)}
-                    <label className="field">
-                      Facial detail priority
-                      <select
-                        value={s.facialDetail}
-                        onChange={(e) =>
-                          settings({
-                            facialDetail: e.target
-                              .value as Settings["facialDetail"],
-                          })
-                        }
-                      >
-                        <option>Low</option>
-                        <option>Medium</option>
-                        <option>High</option>
-                      </select>
-                    </label>
-                    {slider(
-                      "Minimum important feature size",
-                      "minFeatureSize",
-                      0.5,
-                      3,
-                      0.1,
-                      " cells",
-                    )}
-                    <label className="check">
-                      <input
-                        type="checkbox"
-                        checked={s.preserveHair}
-                        onChange={(e) =>
-                          settings({ preserveHair: e.target.checked })
-                        }
-                      />{" "}
-                      Preserve observed hair-silhouette edges
-                    </label>
-                    <p className="hint">
-                      These controls affect Balanced and feature-aware
-                      conversions. Color Accuracy keeps the original pipeline.
-                      Hair and ears are not facial landmarks; only existing edge
-                      evidence is protected.
-                    </p>
-                    <button
-                      className="text-button"
-                      onClick={() => setPreview("Importance")}
+              </StepPanel>
+              <StepPanel
+                step={3}
+                title="Advanced settings"
+                active={activeStep}
+                onOpen={setActiveStep}
+              >
+                <div className="advanced">
+                  <h3>Feature-aware simplification</h3>
+                  <label className="field">
+                    Main subject
+                    <select
+                      aria-label="Main subject"
+                      value={s.subjectKind}
+                      onChange={(e) =>
+                        settings({
+                          subjectKind: e.target.value as SubjectKind,
+                        })
+                      }
                     >
-                      Edit importance map
-                    </button>
+                      {[
+                        "Auto",
+                        "Portrait",
+                        "Animal",
+                        "Flower / plant",
+                        "Building",
+                        "Landscape",
+                        "General object",
+                      ].map((k) => (
+                        <option key={k}>{k}</option>
+                      ))}
+                    </select>
+                  </label>
+                  {slider(
+                    "Feature preservation strength",
+                    "featureStrength",
+                    0,
+                    100,
+                  )}
+                  {slider(
+                    "Background simplification",
+                    "backgroundSimplification",
+                    0,
+                    100,
+                  )}
+                  {slider("Edge emphasis", "edgeEmphasis", 0, 100)}
+                  {slider(
+                    "Local contrast enhancement",
+                    "localContrast",
+                    0,
+                    100,
+                  )}
+                  {slider("Texture removal", "textureRemoval", 0, 100)}
+                  <label className="field">
+                    Facial detail priority
+                    <select
+                      value={s.facialDetail}
+                      onChange={(e) =>
+                        settings({
+                          facialDetail: e.target
+                            .value as Settings["facialDetail"],
+                        })
+                      }
+                    >
+                      <option>Low</option>
+                      <option>Medium</option>
+                      <option>High</option>
+                    </select>
+                  </label>
+                  {slider(
+                    "Minimum important feature size",
+                    "minFeatureSize",
+                    0.5,
+                    3,
+                    0.1,
+                    " cells",
+                  )}
+                  <label className="check">
+                    <input
+                      type="checkbox"
+                      checked={s.preserveHair}
+                      onChange={(e) =>
+                        settings({ preserveHair: e.target.checked })
+                      }
+                    />{" "}
+                    Preserve observed hair-silhouette edges
+                  </label>
+                  <p className="hint">
+                    These controls affect Balanced and feature-aware
+                    conversions. Color Accuracy keeps the original pipeline.
+                    Hair and ears are not facial landmarks; only existing edge
+                    evidence is protected.
+                  </p>
+                  <button
+                    className="text-button"
+                    onClick={() => setPreview("Importance")}
+                  >
+                    Edit importance map
+                  </button>
 
-                    {slider("Brightness", "brightness", -60, 60)}
-                    {slider("Contrast", "contrast", 0.5, 1.8, 0.1)}
-                    {slider("Saturation", "saturation", 0, 2, 0.1)}
-                    {slider("Denoising / smoothing", "smoothing", 0, 4)}
-                    {slider("Edge preservation", "edgePreservation", 10, 95)}
-                    <label className="field">
-                      Border background
-                      <select
-                        aria-label="Border background"
-                        value={s.background}
-                        onChange={(e) =>
-                          settings({
-                            background: e.target
-                              .value as Settings["background"],
-                          })
-                        }
-                      >
-                        <option value="keep">Keep background</option>
-                        <option value="simplify">
-                          Simplify small border regions
-                        </option>
-                        <option value="remove">
-                          Remove largest border-connected region
-                        </option>
-                      </select>
-                    </label>
-                    <p className="hint">
-                      Background detection uses border connectivity, not subject
-                      recognition. Check subjects that touch the image edge.
-                    </p>
-                    <label className="check">
-                      <input
-                        type="checkbox"
-                        checked={s.white}
-                        onChange={(e) => settings({ white: e.target.checked })}
-                      />{" "}
-                      Leave white paper uncolored
-                    </label>
-                    {s.mode === "dots" && (
-                      <>
-                        {slider("Dot diameter", "diameter", 0.8, 5, 0.1, " mm")}
-                        {s.dotLayout === "adaptive" && (
-                          <p className="hint">
-                            Dot diameter is the maximum in adaptive placement.
-                            Increase it for a wider size range; your minimum
-                            stays fixed.
-                          </p>
-                        )}
-                        {number(
-                          "Minimum usable dot (mm)",
-                          "minDot",
-                          0.5,
-                          5,
-                          0.1,
-                        )}
-                        <label className="check">
-                          <input
-                            type="checkbox"
-                            disabled={s.dotLayout === "adaptive"}
-                            checked={s.stagger}
-                            onChange={(e) =>
-                              settings({ stagger: e.target.checked })
-                            }
-                          />{" "}
-                          Staggered grid
-                        </label>
-                        <label className="check">
-                          <input
-                            type="checkbox"
-                            checked={s.dither}
-                            onChange={(e) =>
-                              settings({ dither: e.target.checked })
-                            }
-                          />{" "}
-                          Error-diffusion dithering
-                        </label>
-                        <label className="check">
-                          <input
-                            type="checkbox"
-                            checked={s.labels}
-                            onChange={(e) =>
-                              settings({ labels: e.target.checked })
-                            }
-                          />{" "}
-                          Print guide letters
-                        </label>
-                        <label className="field">
-                          Guide style
-                          <select
-                            value={s.guide}
-                            onChange={(e) =>
-                              settings({
-                                guide: e.target.value as Settings["guide"],
-                              })
-                            }
-                          >
-                            <option value="letters">
-                              Letters only · reference style
-                            </option>
-                            <option value="circles">
-                              Letters inside circles
-                            </option>
-                          </select>
-                        </label>
-                      </>
-                    )}
-                    <label className="field">
-                      Marker tip
-                      <select
-                        value={s.tip}
-                        onChange={(e) => settings({ tip: e.target.value })}
-                      >
-                        <option>Fine tip</option>
-                        <option>Brush tip</option>
-                      </select>
-                    </label>
-                    <h3>Physical page</h3>
-                    <div className="two-col">
-                      {number("Width (in)", "width", 3, 12)}
-                      {number("Height (in)", "height", 3, 17)}
-                      {number("Safe margin (in)", "margin", 0.15, 0.6)}
-                      {number("Top binding (in)", "binding", 0.3, 0.9)}
-                    </div>
-                    <label className="check">
-                      <input
-                        type="checkbox"
-                        checked={!!s.bleed}
-                        onChange={(e) =>
-                          settings({ bleed: e.target.checked ? 0.125 : 0 })
-                        }
-                      />{" "}
-                      Add 0.125″ bleed / trim marks
-                    </label>
-                    <button
-                      className="text-button"
-                      onClick={() => settings({ ...defaults })}
+                  {slider("Brightness", "brightness", -60, 60)}
+                  {slider("Contrast", "contrast", 0.5, 1.8, 0.1)}
+                  {slider("Saturation", "saturation", 0, 2, 0.1)}
+                  {slider("Denoising / smoothing", "smoothing", 0, 4)}
+                  {slider("Edge preservation", "edgePreservation", 10, 95)}
+                  <label className="field">
+                    Border background
+                    <select
+                      aria-label="Border background"
+                      value={s.background}
+                      onChange={(e) =>
+                        settings({
+                          background: e.target.value as Settings["background"],
+                        })
+                      }
                     >
-                      Reset to defaults
-                    </button>
+                      <option value="keep">Keep background</option>
+                      <option value="simplify">
+                        Simplify small border regions
+                      </option>
+                      <option value="remove">
+                        Remove largest border-connected region
+                      </option>
+                    </select>
+                  </label>
+                  <p className="hint">
+                    Background detection uses border connectivity, not subject
+                    recognition. Check subjects that touch the image edge.
+                  </p>
+                  <label className="check">
+                    <input
+                      type="checkbox"
+                      checked={s.white}
+                      onChange={(e) => settings({ white: e.target.checked })}
+                    />{" "}
+                    Leave white paper uncolored
+                  </label>
+                  {s.mode === "dots" && (
+                    <>
+                      {slider("Dot diameter", "diameter", 0.8, 5, 0.1, " mm")}
+                      {s.dotLayout === "adaptive" && (
+                        <p className="hint">
+                          Dot diameter is the maximum in adaptive placement.
+                          Increase it for a wider size range; your minimum stays
+                          fixed.
+                        </p>
+                      )}
+                      {number("Minimum usable dot (mm)", "minDot", 0.5, 5, 0.1)}
+                      <label className="check">
+                        <input
+                          type="checkbox"
+                          disabled={s.dotLayout === "adaptive"}
+                          checked={s.stagger}
+                          onChange={(e) =>
+                            settings({ stagger: e.target.checked })
+                          }
+                        />{" "}
+                        Staggered grid
+                      </label>
+                      <label className="check">
+                        <input
+                          type="checkbox"
+                          checked={s.dither}
+                          onChange={(e) =>
+                            settings({ dither: e.target.checked })
+                          }
+                        />{" "}
+                        Error-diffusion dithering
+                      </label>
+                      <label className="check">
+                        <input
+                          type="checkbox"
+                          checked={s.labels}
+                          onChange={(e) =>
+                            settings({ labels: e.target.checked })
+                          }
+                        />{" "}
+                        Print guide letters
+                      </label>
+                      <label className="field">
+                        Guide style
+                        <select
+                          value={s.guide}
+                          onChange={(e) =>
+                            settings({
+                              guide: e.target.value as Settings["guide"],
+                            })
+                          }
+                        >
+                          <option value="letters">
+                            Letters only · reference style
+                          </option>
+                          <option value="circles">
+                            Letters inside circles
+                          </option>
+                        </select>
+                      </label>
+                    </>
+                  )}
+                  <label className="field">
+                    Marker tip
+                    <select
+                      value={s.tip}
+                      onChange={(e) => settings({ tip: e.target.value })}
+                    >
+                      <option>Fine tip</option>
+                      <option>Brush tip</option>
+                    </select>
+                  </label>
+                  <h3>Physical page</h3>
+                  <div className="two-col">
+                    {number("Width (in)", "width", 3, 12)}
+                    {number("Height (in)", "height", 3, 17)}
+                    {number("Safe margin (in)", "margin", 0.15, 0.6)}
+                    {number("Top binding (in)", "binding", 0.3, 0.9)}
                   </div>
-                )}
-              </section>
+                  <label className="check">
+                    <input
+                      type="checkbox"
+                      checked={!!s.bleed}
+                      onChange={(e) =>
+                        settings({ bleed: e.target.checked ? 0.125 : 0 })
+                      }
+                    />{" "}
+                    Add 0.125″ bleed / trim marks
+                  </label>
+                  <button
+                    className="text-button"
+                    onClick={() => settings({ ...defaults })}
+                  >
+                    Reset to defaults
+                  </button>
+                </div>
+              </StepPanel>
               <div className="privacy">
                 <ShieldCheck size={17} />
                 <p>
@@ -1511,11 +1674,12 @@ function App() {
               ) : (
                 <>
                   <div
+                    ref={stageRef}
                     className={`canvas-stage ${preview === "Compare" ? "compare" : ""}`}
                   >
                     <div
                       className="paper-wrap"
-                      style={{ width: `${Math.round(350 * zoom)}px` }}
+                      style={{ width: `${Math.round(fittedWidth * zoom)}px` }}
                     >
                       <div className="spiral" aria-hidden="true">
                         {Array.from({ length: 12 }, (_, i) => (
@@ -1574,7 +1738,7 @@ function App() {
                     {preview === "Compare" && (
                       <div
                         className="paper-wrap"
-                        style={{ width: `${Math.round(350 * zoom)}px` }}
+                        style={{ width: `${Math.round(fittedWidth * zoom)}px` }}
                       >
                         <div
                           className="paper"
@@ -1612,152 +1776,168 @@ function App() {
               </div>
             </section>
             <aside className="details">
-              <section>
-                <label className="field project-title-field">
-                  Artwork title
-                  <input
-                    aria-label="Artwork title"
-                    value={project.title}
-                    onChange={(e) =>
-                      setProject((p) => ({ ...p, title: e.target.value }))
-                    }
-                  />
-                </label>
-                <div className="section-title">
-                  <h2>Your color story</h2>
-                  <span className="count">{art?.palette.length || 0} INKS</span>
-                </div>
-                <div className="palette-name">
-                  Your marker collection <span>Fine + brush</span>
-                </div>
-                <p className="unverified">
-                  {project.palette.name}.{" "}
-                  {project.palette.verified
-                    ? "User-verified palette."
-                    : "Unverified demo colors — calibrate before matching physical markers."}
-                </p>
-                <div className="legend">
-                  {art?.palette.map((m, i) => (
+              <div className="details-content">
+                <section>
+                  <label className="field project-title-field">
+                    Artwork title
+                    <input
+                      aria-label="Artwork title"
+                      value={project.title}
+                      onChange={(e) =>
+                        setProject((p) => ({ ...p, title: e.target.value }))
+                      }
+                    />
+                  </label>
+                  <div className="section-title">
+                    <h2>Your color story</h2>
+                    <span className="count">
+                      {art?.palette.length || 0} INKS
+                    </span>
+                  </div>
+                  <div className="palette-name">
+                    Your marker collection <span>Fine + brush</span>
+                  </div>
+                  <p className="unverified">
+                    {project.palette.name}.{" "}
+                    {project.palette.verified
+                      ? "User-verified palette."
+                      : "Unverified demo colors — calibrate before matching physical markers."}
+                  </p>
+                  <div className="legend">
+                    {art?.palette.map((m, i) => (
+                      <button
+                        className={paint === i ? "chosen" : ""}
+                        key={m.id}
+                        aria-label={`${letter(i)} ${m.name}`}
+                        title={`${letter(i)} · ${m.name}`}
+                        onClick={() => {
+                          setPaint(paint === i ? null : i);
+                          setMerge(false);
+                        }}
+                      >
+                        <span
+                          className="swatch"
+                          style={{ background: m.hex }}
+                        />
+                        <strong>{letter(i)}</strong>
+                        <span>
+                          {m.name}
+                          <small>{m.code || "Custom / unverified"}</small>
+                        </span>
+                        {paint === i && <Check size={14} />}
+                      </button>
+                    ))}
+                  </div>
+                  <button
+                    className="text-button"
+                    onClick={() => setTab("Marker Sets")}
+                  >
+                    Edit & calibrate marker set <ChevronRight size={13} />
+                  </button>
+                </section>
+                <section>
+                  <h2>Finishing touches</h2>
+                  <p className="hint">
+                    Select a color above, then click{" "}
+                    {s.mode === "dots" ? "or drag across dots" : "a region"} to
+                    recolor.{" "}
+                    {paint !== null
+                      ? "Painting is on."
+                      : "Click artwork to inspect its color."}
+                  </p>
+                  <div className="button-row">
                     <button
-                      className={paint === i ? "chosen" : ""}
-                      key={m.id}
+                      className={paint === -1 ? "selected" : ""}
                       onClick={() => {
-                        setPaint(paint === i ? null : i);
+                        setPaint(paint === -1 ? null : -1);
                         setMerge(false);
                       }}
                     >
-                      <span className="swatch" style={{ background: m.hex }} />
-                      <strong>{letter(i)}</strong>
-                      <span>
-                        {m.name}
-                        <small>{m.code || "Custom / unverified"}</small>
-                      </span>
-                      {paint === i && <Check size={14} />}
+                      Leave blank
                     </button>
+                    <button
+                      onClick={() => {
+                        setPaint(null);
+                        setMerge(false);
+                      }}
+                    >
+                      Inspect
+                    </button>
+                  </div>
+                  {s.mode === "lines" && (
+                    <button
+                      className={merge ? "selected full" : "full"}
+                      onClick={() => {
+                        setMerge(!merge);
+                        setFirstRegion(null);
+                        setPaint(null);
+                      }}
+                    >
+                      {merge
+                        ? "Select two adjacent regions"
+                        : "Merge regions / remove boundary"}
+                    </button>
+                  )}
+                </section>
+                <section>
+                  <h2>Ready for paper</h2>
+                  <dl>
+                    <div>
+                      <dt>
+                        {s.mode === "dots" ? "Coloring dots" : "Color regions"}
+                      </dt>
+                      <dd>
+                        {art
+                          ? (s.mode === "dots"
+                              ? dotMarks(
+                                  project.art!,
+                                  s,
+                                  geometry(s, art.width, art.height),
+                                ).filter(
+                                  (mark) =>
+                                    (project.edits[mark.id] ??
+                                      project.edits[mark.cell] ??
+                                      mark.color ??
+                                      art.assignments[mark.cell]) >= 0,
+                                ).length
+                              : art.regions.length
+                            ).toLocaleString()
+                          : "—"}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>Finished size</dt>
+                      <dd>
+                        {s.width} × {s.height} in
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>Binding</dt>
+                      <dd>Top spiral</dd>
+                    </div>
+                    <div>
+                      <dt>Guide size</dt>
+                      <dd>{art ? guideSize : "—"}</dd>
+                    </div>
+                  </dl>
+                  {warnings.map((w) => (
+                    <p className="warning" key={w}>
+                      {w}
+                    </p>
                   ))}
-                </div>
-                <button
-                  className="text-button"
-                  onClick={() => setTab("Marker Sets")}
-                >
-                  Edit & calibrate marker set <ChevronRight size={13} />
-                </button>
-              </section>
-              <section>
-                <h2>Finishing touches</h2>
-                <p className="hint">
-                  Select a color above, then click{" "}
-                  {s.mode === "dots" ? "or drag across dots" : "a region"} to
-                  recolor.{" "}
-                  {paint !== null
-                    ? "Painting is on."
-                    : "Click artwork to inspect its color."}
-                </p>
-                <div className="button-row">
-                  <button
-                    className={paint === -1 ? "selected" : ""}
-                    onClick={() => {
-                      setPaint(paint === -1 ? null : -1);
-                      setMerge(false);
-                    }}
-                  >
-                    Leave blank
-                  </button>
-                  <button
-                    onClick={() => {
-                      setPaint(null);
-                      setMerge(false);
-                    }}
-                  >
-                    Inspect
-                  </button>
-                </div>
-                {s.mode === "lines" && (
-                  <button
-                    className={merge ? "selected full" : "full"}
-                    onClick={() => {
-                      setMerge(!merge);
-                      setFirstRegion(null);
-                      setPaint(null);
-                    }}
-                  >
-                    {merge
-                      ? "Select two adjacent regions"
-                      : "Merge regions / remove boundary"}
-                  </button>
-                )}
-              </section>
-              <section>
-                <h2>Ready for paper</h2>
-                <dl>
-                  <div>
-                    <dt>
-                      {s.mode === "dots" ? "Coloring dots" : "Color regions"}
-                    </dt>
-                    <dd>
-                      {art
-                        ? (s.mode === "dots"
-                            ? dotMarks(
-                                project.art!,
-                                s,
-                                geometry(s, art.width, art.height),
-                              ).filter(
-                                (mark) => art.assignments[mark.cell] >= 0,
-                              ).length
-                            : art.regions.length
-                          ).toLocaleString()
-                        : "—"}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt>Finished size</dt>
-                    <dd>
-                      {s.width} × {s.height} in
-                    </dd>
-                  </div>
-                  <div>
-                    <dt>Binding</dt>
-                    <dd>Top spiral</dd>
-                  </div>
-                  <div>
-                    <dt>Guide size</dt>
-                    <dd>{art ? guideSize : "—"}</dd>
-                  </div>
-                </dl>
-                {warnings.map((w) => (
-                  <p className="warning" key={w}>
-                    {w}
+
+                  <p className="hint center">
+                    {preview === "Colored"
+                      ? "Exports the colored simulation."
+                      : "Exports the printable template."}
+                    <br />
+                    Proof your paper and markers before printing a full set.
                   </p>
-                ))}
+                </section>
+              </div>
+              <div className="details-export">
                 <ExportButtons />
-                <p className="hint center">
-                  {preview === "Colored"
-                    ? "Exports the colored simulation."
-                    : "Exports the printable template."}
-                  <br />
-                  Proof your paper and markers before printing a full set.
-                </p>
-              </section>
+              </div>
             </aside>
           </main>
         </>
@@ -2071,6 +2251,10 @@ function App() {
               colors and edits.
             </p>
           </div>
+          <button className="primary new-notebook-page" onClick={newPage}>
+            <Plus size={16} />
+            Create a page for this notebook
+          </button>
           <div className="notebook-layout">
             <section>
               <div className="card">
@@ -2545,10 +2729,14 @@ function App() {
               variants: undefined,
             }));
             setCropOpen(false);
+            setActiveStep(2);
+            setMobilePanel("steps");
           }}
           onDismiss={() => {
             setProject((p) => ({ ...p, cropReview: false }));
             setCropOpen(false);
+            setActiveStep(2);
+            setMobilePanel("steps");
           }}
           onRetry={() => setAnalysisRequest((n) => n + 1)}
         />
@@ -2561,7 +2749,7 @@ function App() {
           Made for real paper & real moments. · No accounts. No uploads.
         </span>
       </footer>
-    </>
+    </div>
   );
 }
 createRoot(document.getElementById("root")!).render(

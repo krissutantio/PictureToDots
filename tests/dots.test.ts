@@ -34,7 +34,7 @@ const project = (): Project => ({
   title: "Adaptive study",
   image: "data:image/png;base64,",
   updated: 0,
-  settings,
+  settings: { ...settings },
   palette,
   art: art(),
   edits: {},
@@ -47,8 +47,8 @@ describe("adaptive physical placement", () => {
       marks = dotMarks(a, settings, g);
     expect(marks.length).toBeGreaterThan(100);
     expect(dotMarks(a, { ...settings, labels: false }, g)).toEqual(marks);
-    expect(marks.length).toBeLessThan(a.assignments.length);
-    expect(new Set(marks.map((m) => m.cell)).size).toBe(marks.length);
+    expect(new Set(marks.map((m) => m.id)).size).toBe(marks.length);
+    expect(new Set(marks.map((m) => m.cell)).size).toBeLessThan(marks.length);
     expect(
       new Set(marks.map((m) => m.diameter.toFixed(3))).size,
     ).toBeGreaterThan(1);
@@ -73,10 +73,18 @@ describe("adaptive physical placement", () => {
           (m.footprint + n.footprint) / 2 + 0.6,
         );
     }
-    const edge = marks.filter((m) => [11, 12].includes(m.cell % 24));
-    const flat = marks.filter((m) => [3, 20].includes(m.cell % 24));
+    const edge = marks.filter(
+      (m) =>
+        [11, 12].includes(m.cell % 24) && m.cell >= 24 * 3 && m.cell < 24 * 25,
+    );
+    const flat = marks.filter(
+      (m) =>
+        [3, 20].includes(m.cell % 24) && m.cell >= 24 * 3 && m.cell < 24 * 25,
+    );
     expect(edge.length).toBeGreaterThan(0);
-    expect(edge[0].diameter).toBeLessThan(flat[0].diameter);
+    const mean = (items: typeof marks) =>
+      items.reduce((sum, m) => sum + m.diameter, 0) / items.length;
+    expect(mean(edge)).toBeLessThan(mean(flat));
   });
   it("uses measured colors, leaves paper blank, preserves positions through recoloring and rejects impossible sizes", async () => {
     const p = project(),
@@ -176,5 +184,64 @@ describe("full 60-color defaults and printable keys", () => {
         settings: { ...settings, dotLayout: "invalid" },
       }),
     ).toBe(false);
+  });
+});
+
+describe("continuous adaptive layout compatibility", () => {
+  it("retains legacy adaptive geometry until explicitly upgraded", () => {
+    const p = project();
+    delete (p.settings as Partial<typeof defaults>).dotLayoutVersion;
+    const old = dotMarks(p.art!, p.settings, geometry(p.settings, 24, 28));
+    expect(validateProject(p)).toBe(true);
+    expect(p.settings.dotLayoutVersion).toBe(1);
+    expect(dotMarks(p.art!, p.settings, geometry(p.settings, 24, 28))).toEqual(
+      old,
+    );
+    expect(new Set(old.map((m) => m.cell)).size).toBe(old.length);
+    const upgraded = dotMarks(
+      p.art!,
+      { ...p.settings, dotLayoutVersion: 2 },
+      geometry(p.settings, 24, 28),
+    );
+    expect(upgraded.some((m) => m.id >= p.art!.assignments.length)).toBe(true);
+  });
+  it("uses higher-resolution observed detail and recolors individual free marks independently", () => {
+    const p = project(),
+      a = p.art!;
+    a.assignments.fill(0);
+    a.dotField = {
+      width: 96,
+      height: 112,
+      assignments: Array.from({ length: 96 * 112 }, (_, i) =>
+        i % 96 >= 40 &&
+        i % 96 < 56 &&
+        Math.floor(i / 96) >= 40 &&
+        Math.floor(i / 96) < 60
+          ? 1
+          : 0,
+      ),
+    };
+    const marks = dotMarks(
+      a,
+      p.settings,
+      geometry(p.settings, a.width, a.height),
+    );
+    expect(marks.some((m) => m.color === 1)).toBe(true);
+    const first = marks.find((m) =>
+      marks.some((n) => n.id !== m.id && n.cell === m.cell),
+    )!;
+    const other = marks.find(
+      (m) => m.id !== first.id && m.cell === first.cell,
+    )!;
+    p.edits[first.id] = 2;
+    const svg = artworkSVG(p, true);
+    const group = (id: number) =>
+      svg.split(`<g data-cell="${id}"`)[1].split("</g>")[0];
+    expect(group(first.id)).toContain(`fill="${a.palette[2].hex}"`);
+    expect(group(other.id)).toContain(`fill="${a.palette[other.color!].hex}"`);
+    expect(validateProject(JSON.parse(JSON.stringify(p)))).toBe(true);
+    const bad = JSON.parse(JSON.stringify(p));
+    bad.art.dotField.assignments[0] = 1000;
+    expect(validateProject(bad)).toBe(false);
   });
 });

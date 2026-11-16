@@ -51,3 +51,30 @@ Completed: shared deterministic packing, coverage advisories, 60-color eligibili
 physical blockers, wrapped/paginated keys, backup/edit stability and safe legacy
 preference migration. See [TESTING](TESTING.md) for the 28-unit/14-browser results
 and print-proof review. The official palette mapping remains unresolved.
+
+## Continuous placement revision (v2)
+
+The first adaptive algorithm jittered one candidate inside each processing cell.
+Version 2 removes that constraint: deterministic continuous coordinates sample the
+whole artwork area; variable-radius packing accepts multiple marks per raster
+cell. Each free mark gets a stable ID distinct from its underlying source cell,
+so repainting one letter does not repaint another letter in that same cell.
+
+Dot workers retain an additional high-resolution measured color/importance field
+(`Artwork.dotField`). The palette is the same enabled subset used by the artwork;
+feature preprocessing supplies measured fine detail, never synthesized anatomy.
+Size/density follow observed boundaries and importance. Physical diameter,
+letter footprint, non-overlap and safe-area constraints still apply. Coverage
+advisories count unrepresented regions in the high-resolution field.
+
+`Settings.dotLayoutVersion` defaults to 2 for new work. A saved adaptive project
+without that field migrates to version 1, preserving its previous coordinates and
+source-cell edits. The explicit Upgrade to free placement action opts into v2.
+Do not change v1 geometry or silently reinterpret v2 stable IDs in future edits.
+Regular-grid projects remain regular. Changing the minimum/maximum sizes can
+change which free candidates fit; edits remain stored and return with that layout.
+
+Preview, SVG, PNG, PDF, comparisons and notebook output consume the same marks.
+A `dotField` is optional for older backups and strictly validated on import.
+Higher-resolution fields add backup/storage cost, so quota failures must remain
+visible and buffers must stay bounded.

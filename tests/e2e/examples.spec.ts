@@ -1,3 +1,4 @@
+import { studio, step } from "./helpers";
 import { test, expect } from "@playwright/test";
 import { mkdir } from "node:fs/promises";
 import { resolve } from "node:path";
@@ -6,7 +7,9 @@ test("generate four original sample projects and printable examples", async ({
 }) => {
   await mkdir("examples", { recursive: true });
   await page.goto("/");
+  await studio(page);
   for (const name of ["flowers", "portrait", "animal", "landscape"]) {
+    await step(page, 1);
     await page
       .getByRole("button", { name: `Load ${name} sample`, exact: true })
       .click();
@@ -55,6 +58,7 @@ test("generate four original sample projects and printable examples", async ({
     await (await pending).saveAs(resolve(`examples/${name}-project.json`));
     await page.getByRole("button", { name: "Create", exact: true }).click();
   }
+  await step(page, 1);
   await page
     .getByRole("button", { name: "Load flowers sample", exact: true })
     .click();

@@ -2,20 +2,21 @@
 
 ## Entry points
 
-| Concern                             | Files                                                                          |
-| ----------------------------------- | ------------------------------------------------------------------------------ |
-| React studio/navigation/state       | `src/main.tsx`, `src/types.ts`                                                 |
-| Crop geometry and editor            | `src/crop.ts`, `src/CropEditor.tsx`                                            |
-| Source sampling/original retention  | `src/input.ts`, `src/samples.ts`                                               |
-| Subject orchestration               | `src/analysis.ts`, `src/analysis.worker.ts`, `src/saliency.ts`                 |
-| Local model inference               | `public/vision/model-worker.js`, model files in the same folder                |
-| Feature importance/preprocessing    | `src/features.ts`, `src/ImportanceEditor.tsx`, `src/subject-types.ts`          |
-| Palette/segmentation/print geometry | `src/processing.ts`, `src/processor.worker.ts`                                 |
-| Strategy comparison                 | `src/StrategyComparison.tsx`                                                   |
-| Adaptive mark packing               | `src/dots.ts` (shared physical geometry, cached from unedited artwork)         |
-| Rendering/downloads                 | `src/render.ts`, `src/export.ts`                                               |
-| Persistence/import validation       | `src/storage.ts`                                                               |
-| Deployment/offline                  | `vite.config.ts`, `scripts/service-worker.mjs`, `.github/workflows/deploy.yml` |
+| Concern                             | Files                                                                           |
+| ----------------------------------- | ------------------------------------------------------------------------------- |
+| Home library / step flow            | `src/Home.tsx`, `src/StepPanel.tsx`, [WORKSPACE](WORKSPACE.md)                  |
+| React studio/navigation/state       | `src/main.tsx`, `src/types.ts`                                                  |
+| Crop geometry and editor            | `src/crop.ts`, `src/CropEditor.tsx`                                             |
+| Source sampling/original retention  | `src/input.ts`, `src/samples.ts`                                                |
+| Subject orchestration               | `src/analysis.ts`, `src/analysis.worker.ts`, `src/saliency.ts`                  |
+| Local model inference               | `public/vision/model-worker.js`, model files in the same folder                 |
+| Feature importance/preprocessing    | `src/features.ts`, `src/ImportanceEditor.tsx`, `src/subject-types.ts`           |
+| Palette/segmentation/print geometry | `src/processing.ts`, `src/processor.worker.ts`                                  |
+| Strategy comparison                 | `src/StrategyComparison.tsx`                                                    |
+| Adaptive mark packing               | `src/dots.ts`, `src/free-dots.ts` (shared physical geometry, versioned packing) |
+| Rendering/downloads                 | `src/render.ts`, `src/export.ts`                                                |
+| Persistence/import validation       | `src/storage.ts`                                                                |
+| Deployment/offline                  | `vite.config.ts`, `scripts/service-worker.mjs`, `.github/workflows/deploy.yml`  |
 
 ## Coordinate contracts
 
@@ -23,7 +24,7 @@
 - `Project.framing` uses center/zoom in the **rotated source** coordinate system. `cropRect` returns normalized crop dimensions; white-margin framing may extend outside 0–1.
 - `cropPoint` rotates a source point, then maps it into the accepted crop. `unrotatePoint` reverses that mapping for importance sampling.
 - `Settings.crop/cropX/cropY` are legacy fields. `legacyFrame` preserves old saved projects; new UI uses `framing`.
-- Print geometry is points (72/inch). The processing raster remains regular. `Settings.dotLayout` explicitly selects regular/staggered marks or deterministic adaptive placement; conversion priority never selects a layout or changes resolution. Adaptive centers refer to source cell IDs and use physical points from the same `dotMarks` helper in SVG/PNG/PDF. Layout uses unedited saved artwork, so recoloring cannot move it. See [ADAPTIVE_LAYOUT](ADAPTIVE_LAYOUT.md).
+- Print geometry is points (72/inch). The processing raster remains regular. `Settings.dotLayout` explicitly selects regular/staggered marks or deterministic adaptive placement; conversion priority never selects a layout or changes resolution. Version-2 adaptive centers have independent stable IDs plus a source-cell/color reference; legacy centers refer to source cell IDs and use physical points from the same `dotMarks` helper in SVG/PNG/PDF. Layout uses unedited saved artwork, so recoloring cannot move it. See [ADAPTIVE_LAYOUT](ADAPTIVE_LAYOUT.md).
 
 ## Data flow
 
@@ -44,3 +45,7 @@ Use workers for pixel processing and local vision inference. Terminate obsolete 
 ## Full-set print keys
 
 Full-set matching bypasses subset pruning when the budget covers all enabled markers. The output supports up to 60 colors with bijective A–Z, AA–BH labels; disabled entries never participate. Wrapped legends reserve header rows; individual keys and notebook overviews paginate. Small physical pages whose legend/margins consume the artwork area are blocked. The bundled palette remains unverified demo data; no official Maui codes have been invented.
+
+## Standalone web app
+
+See [INSTALL](INSTALL.md) for manifest/icon paths, iOS installation, offline behavior and device-verification limits. [WORKSPACE](WORKSPACE.md) documents multi-notebook preference migration and the fixed-height shell. Dot workers attach a validated high-resolution color/importance field for continuous placement while retaining the original regular artwork for compatibility.

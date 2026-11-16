@@ -1,3 +1,4 @@
+import { studio, step } from "./helpers";
 import { test, expect } from "@playwright/test";
 import { readFile, mkdir } from "node:fs/promises";
 import JSZip from "jszip";
@@ -17,6 +18,7 @@ test("full local workflow: modes, edits, saving and all exports", async ({
       external.push(r.url());
   });
   await page.goto("/");
+  await studio(page);
   await expect(
     page.getByRole("button", { name: "Download PDF", exact: true }),
   ).toBeEnabled();
@@ -108,6 +110,7 @@ test("full local workflow: modes, edits, saving and all exports", async ({
 test("mobile layout and marker management", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");
+  await studio(page);
   await expect(
     page.getByRole("button", { name: "Download PDF", exact: true }),
   ).toBeEnabled();
@@ -133,6 +136,7 @@ test("uploads a local photo and round-trips a project backup", async ({
   page,
 }) => {
   await page.goto("/");
+  await studio(page);
   await expect(
     page.getByRole("button", { name: "Download PDF", exact: true }),
   ).toBeEnabled();
@@ -175,6 +179,7 @@ test("merged regions survive import, label changes, save and reopen", async ({
   const { regionsFor } = await import("../../src/processing");
   const palette = JSON.parse(await readFile("src/palettes.json", "utf8"));
   await page.goto("/");
+  await studio(page);
   await expect(
     page.getByRole("button", { name: "Download PDF", exact: true }),
   ).toBeEnabled();

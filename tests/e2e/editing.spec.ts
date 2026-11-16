@@ -1,3 +1,4 @@
+import { studio, step } from "./helpers";
 import { test, expect } from "@playwright/test";
 import { readFile } from "node:fs/promises";
 
@@ -5,6 +6,7 @@ test("photo crop, rotated brush, comparisons and backups preserve source edits",
   page,
 }) => {
   await page.goto("/");
+  await studio(page);
   await page
     .locator("input[type=file]")
     .first()
@@ -47,7 +49,9 @@ test("photo crop, rotated brush, comparisons and backups preserve source edits",
   await expect(
     page.getByRole("button", { name: "Undo brush stroke", exact: true }),
   ).toBeEnabled();
+  await step(page, 1);
   await page.getByRole("button", { name: "Rotate 90°", exact: true }).click();
+  await step(page, 2);
   await page.getByRole("button", { name: "Strategies", exact: true }).click();
   await expect(page.locator(".comparison-art svg")).toHaveCount(3);
   await expect(
@@ -113,6 +117,7 @@ test("photo crop, rotated brush, comparisons and backups preserve source edits",
     mimeType: "application/json",
     buffer: bytes,
   });
+  await step(page, 1);
   await page
     .getByRole("button", { name: "Crop & reframe", exact: true })
     .click();
@@ -129,9 +134,11 @@ test("crop drag, keyboard, resize and rejection work at 1×", async ({
   page,
 }) => {
   await page.goto("/");
+  await studio(page);
   await expect(
     page.getByRole("button", { name: "Download PDF", exact: true }),
   ).toBeEnabled();
+  await step(page, 1);
   await page
     .getByRole("button", { name: "Crop & reframe", exact: true })
     .click();
@@ -168,6 +175,7 @@ test("crop drag, keyboard, resize and rejection work at 1×", async ({
   await page
     .getByRole("button", { name: "Keep current crop", exact: true })
     .click();
+  await step(page, 1);
   await page
     .getByRole("button", { name: "Crop & reframe", exact: true })
     .click();
@@ -178,6 +186,7 @@ test("crop drag, keyboard, resize and rejection work at 1×", async ({
     .getByRole("button", { name: "Move crop right", exact: true })
     .click();
   await page.getByRole("button", { name: "Apply crop", exact: true }).click();
+  await step(page, 1);
   await page
     .getByRole("button", { name: "Crop & reframe", exact: true })
     .click();

@@ -11,7 +11,9 @@ npm ci
 npm run dev
 ```
 
-Open the local URL printed by Vite (normally `http://127.0.0.1:5173/`).
+Open the local URL printed by Vite (normally `http://127.0.0.1:5173/`). Home lists your local notebooks; create/edit one, or choose New page to open the studio.
+
+For an iPhone Home Screen installation, see [INSTALL](docs/INSTALL.md). After deploying this version, use Safari → Share → Add to Home Screen → Open as Web App (if shown) → Add.
 
 ```sh
 npm test
@@ -29,7 +31,8 @@ Build before running the full browser suite: it also tests `dist/` under `/Pictu
 - Reviewable subject-focused crop suggestions and a draggable, resizable crop editor with keyboard nudging. Enable white paper margins to move in both axes at 1×.
 - Optional self-hosted face landmarks, object detection and scene classification, with generic saliency fallback. Color Accuracy, Balanced, Feature Preservation and Maximum Recognizability priorities share your selected grid and physical marker limits.
 - Source-coordinate importance brush, measured-feature protection and three-strategy comparison thumbnails with a printable comparison PDF. No generated facial landmarks or promised likeness.
-- Dot art with regular/staggered placement or **Adaptive · varied positions & sizes**. Adaptive marks are smaller near measured detail and larger in flat areas, with irregular centers and shared preview/print geometry. Choose it under **Letter placement**; **Advanced settings → Dot diameter** controls its maximum size, and **Minimum usable dot** controls its minimum.
+- A Home library for multiple local notebooks and a compact shared navigation bar. The studio fits the viewport with one open step, crop-to-style progression, internally scrollable settings/lists, and mobile Steps/Preview/Export panels.
+- Dot art with regular/staggered placement or **Adaptive · free positions & sizes**. Adaptive marks use continuous positions, independent IDs and individual sizes, with multiple letters permitted per sampling cell. A higher-resolution measured field preserves more observed detail; preview/print share the same geometry. Existing adaptive projects retain their old version until explicitly upgraded. Choose it under **Letter placement**; **Advanced settings → Dot diameter** controls its maximum size, and **Minimum usable dot** controls its minimum.
 - Adjustable sampling resolution, physical mark sizes, light-gray letters or outlined circles, paper-white regions, cleanup and Floyd–Steinberg dithering. Small regions that cannot receive an adaptive mark are flagged for review.
 - Traditional line art and color-by-letter art, based on edge-aware color segmentation, connected components, adjacent-region merging, closed contour tracing, shared-boundary simplification and interior label placement.
 - New work defaults to a **60-color budget**, with all 60 starter swatches enabled. **Use full marker set** restores that budget after selecting a smaller limit. Full-set matching considers every enabled entry; images need not use all 60. Smaller budgets use CIELAB/Delta E 76 subset selection and avoid near-duplicate inks. Difficulty and sampling resolution remain independent.
@@ -112,12 +115,12 @@ This is a working first implementation, not a claim of parity with hand-illustra
 - Adaptive placement is a deterministic approximation, not a hand-illustrated reconstruction. Its sampling raster stays at your selected resolution; it can omit tiny color regions where physical marks cannot fit, and warns when that happens. Recoloring keeps positions fixed; changing mark sizes or sampling can change which source cells receive marks.
 - Output detail is processed at the selected resolution; exports use the same vectors rather than a second, higher-detail segmentation that could invalidate manual edits.
 - Local models are probabilistic: faces can be missed and categories can be wrong. A real rocket photo was classified as a drilling platform in verification. Hair preservation uses observed edges, not semantic hair segmentation. At low resolution and 4–8 colors, small faces can lose recognizable detail; inspect the comparison proof and crop closer when needed. Profile, glasses, varied-lighting and real group portraits still need validation.
-- The service worker provides offline revisits after a complete online production load. Vision assets load lazily from the same origin and become available offline after successful use; an uncached model falls back to generic saliency offline. There is no install prompt or full PWA manifest. Browser eviction or private browsing can remove cached data.
+- The service worker provides offline revisits after a complete online production load. Vision assets load lazily from the same origin and become available offline after successful use; an uncached model falls back to generic saliency offline. A standalone manifest, local icons and Apple metadata support Home Screen installation; Safari installation remains a manual Share-menu action. Actual iOS installation/device behavior still needs manual verification. Browser eviction or private browsing can remove cached data.
 - Browser tests cover Chromium. Safari/Firefox and physical paper/marker proofing still need real-device validation.
 
 ## Deployment to GitHub Pages
 
-The application has no server routes, API keys, paid service, external runtime fonts or image-processing endpoints. Tabs are local UI state; refresh returns to Create instead of producing a deep-link 404. IndexedDB projects remain accessible through My Projects.
+The application has no server routes, API keys, paid service, external runtime fonts or image-processing endpoints. Tabs are local UI state; refresh returns to Home instead of producing a deep-link 404. IndexedDB projects remain accessible through My Projects.
 
 1. Create an empty GitHub repository, such as `PictureToDots`.
 2. From this folder, commit the source and configure your repository remote. Keep the supplied reference photos private; `.gitignore` excludes `IMG_*.HEIC`.
@@ -155,7 +158,9 @@ The repository remote is configured at [krissutantio/PictureToDots](https://gith
 
 - `src/processing.ts`: color science, palette optimization, cleanup, connected components, contour tracing, simplification and print geometry.
 - `src/processor.worker.ts`: isolated processing jobs; obsolete workers are terminated.
-- `src/dots.ts`: deterministic adaptive positions, variable physical mark sizes, collision checks and coverage advisories.
+- `src/dots.ts`, `src/free-dots.ts`: versioned continuous positions, independent mark IDs, variable physical sizes, collision checks and coverage advisories.
+- `src/Home.tsx`, `src/StepPanel.tsx`: notebook gallery and collapsible studio flow.
+- `public/manifest.webmanifest`, `public/icons/`: standalone install configuration and local icons.
 - `src/crop.ts`, `src/CropEditor.tsx`, `src/input.ts`: reversible framing and source sampling.
 - `src/analysis.ts`, `src/analysis.worker.ts`, `public/vision/`: saliency and self-hosted model inference in workers.
 - `src/features.ts`, `src/ImportanceEditor.tsx`, `src/StrategyComparison.tsx`: importance edits, structure-aware conversion and comparison proofs.

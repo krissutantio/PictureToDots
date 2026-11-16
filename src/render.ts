@@ -50,13 +50,16 @@ export function artworkSVG(
     });
   }
   if (a.mode === "dots") {
-    dotMarks(p.art!, s, g).forEach(({ cell: i, x, y, diameter, font }) => {
-      const color = a.assignments[i];
-      body += `<g data-cell="${i}" data-mark-size="${diameter}"><circle cx="${x}" cy="${y}" r="${diameter / 2}" fill="${colored ? (color >= 0 ? a.palette[color].hex : "white") : "white"}" stroke="${colored || color < 0 ? "none" : s.guide === "circles" ? "#bcc1ba" : "none"}" stroke-width=".35"/>`;
-      if (!colored && s.labels && color >= 0)
-        body += `<text x="${x}" y="${y + font * 0.34}" text-anchor="middle" font-size="${font}" fill="#8b9189">${letter(color)}</text>`;
-      body += "</g>";
-    });
+    dotMarks(p.art!, s, g).forEach(
+      ({ id: i, cell, color: measured, x, y, diameter, font }) => {
+        const color =
+          p.edits[i] ?? p.edits[cell] ?? measured ?? a.assignments[cell];
+        body += `<g data-cell="${i}" data-mark-size="${diameter}"><circle cx="${x}" cy="${y}" r="${diameter / 2}" fill="${colored ? (color >= 0 ? a.palette[color].hex : "white") : "white"}" stroke="${colored || color < 0 ? "none" : s.guide === "circles" ? "#bcc1ba" : "none"}" stroke-width=".35"/>`;
+        if (!colored && s.labels && color >= 0)
+          body += `<text x="${x}" y="${y + font * 0.34}" text-anchor="middle" font-size="${font}" fill="#8b9189">${letter(color)}</text>`;
+        body += "</g>";
+      },
+    );
   } else {
     a.regions.forEach((r) => {
       body += `<g data-region="${r.id}"><path d="${r.paths.join(" ")}" transform="translate(${g.left},${g.top}) scale(${g.pitch})" fill="${colored && r.color >= 0 ? a.palette[r.color].hex : "white"}" fill-rule="evenodd" stroke="${s.background === "remove" && r.color < 0 ? "none" : "#303831"}" stroke-width="${s.thickness / g.pitch}" stroke-linejoin="round"/>`;

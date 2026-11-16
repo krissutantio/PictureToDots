@@ -101,8 +101,9 @@ export async function artworkPDF(
       });
     if (a.mode === "dots") {
       dotMarks(p.art!, s, g).forEach(
-        ({ cell, x: xx, y: yy, diameter, font: size }) => {
-          const n = a.assignments[cell];
+        ({ id, cell, color: measured, x: xx, y: yy, diameter, font: size }) => {
+          const n =
+            p.edits[id] ?? p.edits[cell] ?? measured ?? a.assignments[cell];
           if (n < 0) return;
           if (colored || s.guide === "circles")
             page.drawCircle({

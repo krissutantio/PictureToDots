@@ -113,6 +113,27 @@ function validateProjectData(p: unknown): p is Project {
       a.regions.length > a.assignments.length
     )
       return false;
+    if (a.dotField !== undefined) {
+      const f = a.dotField;
+      if (
+        !f ||
+        !Number.isInteger(f.width) ||
+        !Number.isInteger(f.height) ||
+        f.width < 1 ||
+        f.height < 1 ||
+        f.width > 2048 ||
+        f.height > 2048 ||
+        f.width * f.height > 800000 ||
+        !Array.isArray(f.assignments) ||
+        f.assignments.length !== f.width * f.height ||
+        !f.assignments.every(validColor) ||
+        (f.importance !== undefined &&
+          (!Array.isArray(f.importance) ||
+            f.importance.length !== f.assignments.length ||
+            !f.importance.every((v) => Number.isFinite(v) && v >= 0 && v <= 1)))
+      )
+        return false;
+    }
     if (a.diagnostics !== undefined) {
       const d = a.diagnostics;
       if (
@@ -345,7 +366,15 @@ function validateProjectData(p: unknown): p is Project {
       !/^data:image\/(png|jpeg|webp);base64,/.test(x.originalFile.data))
   )
     return false;
-  x.settings = { ...defaults, ...x.settings };
+  if (
+    x.settings.dotLayoutVersion !== undefined &&
+    ![1, 2].includes(x.settings.dotLayoutVersion)
+  )
+    return false;
+  const dotLayoutVersion =
+    x.settings.dotLayoutVersion ??
+    (x.settings.dotLayout === "adaptive" ? 1 : 2);
+  x.settings = { ...defaults, ...x.settings, dotLayoutVersion };
   // Cached modes are an optimization, not trusted import input.
   delete x.variants;
   return true;

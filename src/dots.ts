@@ -1,7 +1,10 @@
+import { freeDotMarks } from "./free-dots";
 import type { Artwork, Settings } from "./types";
 import { letter } from "./types";
 
 export type DotMark = {
+  id: number;
+  color?: number;
   cell: number;
   x: number;
   y: number;
@@ -9,7 +12,7 @@ export type DotMark = {
   font: number;
   footprint: number;
 };
-type Geometry = {
+export type DotGeometry = {
   left: number;
   top: number;
   pitch: number;
@@ -24,8 +27,15 @@ const hash = (n: number) => {
 };
 
 /** Physical positions in points, derived from unedited saved artwork. */
-export function dotMarks(a: Artwork, s: Settings, g: Geometry): DotMark[] {
-  const key = JSON.stringify([s.dotLayout, s.diameter, s.minDot, s.stagger, g]);
+export function dotMarks(a: Artwork, s: Settings, g: DotGeometry): DotMark[] {
+  const key = JSON.stringify([
+    s.dotLayout,
+    s.dotLayoutVersion,
+    s.diameter,
+    s.minDot,
+    s.stagger,
+    g,
+  ]);
   const existing = cache.get(a)?.get(key);
   if (existing) return existing;
   const result: DotMark[] = [];
@@ -34,6 +44,7 @@ export function dotMarks(a: Artwork, s: Settings, g: Geometry): DotMark[] {
     a.assignments.forEach((color, cell) => {
       const font = Math.min(g.font, (g.pitch * 0.75) / (0.67 * labelLength));
       result.push({
+        id: cell,
         cell,
         x:
           g.left +
@@ -50,6 +61,8 @@ export function dotMarks(a: Artwork, s: Settings, g: Geometry): DotMark[] {
         ),
       });
     });
+  } else if (s.dotLayoutVersion === 2) {
+    result.push(...freeDotMarks(a, s, g));
   } else {
     const minDiameter = (s.minDot * 72) / 25.4,
       maxDiameter = (s.diameter * 72) / 25.4;
@@ -107,6 +120,7 @@ export function dotMarks(a: Artwork, s: Settings, g: Geometry): DotMark[] {
         // Keep a density budget tied to the chosen resolution, with extra space in flat areas.
         const packing = Math.max(footprint + 0.6, g.pitch * (0.72 + 0.35 * t));
         const mark = {
+          id: cell,
           cell,
           x: g.left + xx * g.pitch,
           y: g.top + yy * g.pitch,
@@ -188,32 +202,49 @@ const warningCache = new WeakMap<DotMark[], string[]>();
 export function dotPlacementWarnings(
   a: Artwork,
   s: Settings,
-  g: Geometry,
+  g: DotGeometry,
 ): string[] {
   if (s.dotLayout !== "adaptive") return [];
   const marks = dotMarks(a, s, g),
     cached = warningCache.get(marks);
   if (cached) return cached;
-  const represented = new Set(marks.map((m) => m.cell)),
-    seen = new Uint8Array(a.assignments.length);
+  const field = s.dotLayoutVersion === 2 && a.dotField ? a.dotField : a;
+  const represented = new Set(
+      marks.map(
+        (m) =>
+          Math.min(
+            field.height - 1,
+            Math.floor(((m.y - g.top) / (a.height * g.pitch)) * field.height),
+          ) *
+            field.width +
+          Math.min(
+            field.width - 1,
+            Math.floor(((m.x - g.left) / (a.width * g.pitch)) * field.width),
+          ),
+      ),
+    ),
+    seen = new Uint8Array(field.assignments.length);
   let missing = 0;
-  for (let start = 0; start < a.assignments.length; start++) {
-    if (seen[start] || a.assignments[start] < 0) continue;
+  for (let start = 0; start < field.assignments.length; start++) {
+    if (seen[start] || field.assignments[start] < 0) continue;
     seen[start] = 1;
     const queue = [start];
     let covered = false;
     for (let q = 0; q < queue.length; q++) {
       const cell = queue[q];
       if (represented.has(cell)) covered = true;
-      const x = cell % a.width,
-        y = Math.floor(cell / a.width);
+      const x = cell % field.width,
+        y = Math.floor(cell / field.width);
       for (const next of [
         ...(x ? [cell - 1] : []),
-        ...(x < a.width - 1 ? [cell + 1] : []),
-        ...(y ? [cell - a.width] : []),
-        ...(y < a.height - 1 ? [cell + a.width] : []),
+        ...(x < field.width - 1 ? [cell + 1] : []),
+        ...(y ? [cell - field.width] : []),
+        ...(y < field.height - 1 ? [cell + field.width] : []),
       ]) {
-        if (!seen[next] && a.assignments[next] === a.assignments[start]) {
+        if (
+          !seen[next] &&
+          field.assignments[next] === field.assignments[start]
+        ) {
           seen[next] = 1;
           queue.push(next);
         }

@@ -3,14 +3,65 @@ import { featurePrepare, featureMetrics, priorities } from "./features";
 import type { Settings, Artwork } from "./types";
 self.onmessage = ({ data: job }) => {
   try {
+    const detailField = (
+      art: Artwork,
+      settings: Settings,
+      data: Uint8ClampedArray,
+      importance?: Float32Array,
+    ) => {
+      if (art.mode !== "dots" || !job.inputWidth) return art;
+      const detail = processPixels(
+        data,
+        job.inputWidth,
+        job.inputHeight,
+        {
+          ...settings,
+          mode: "dots",
+          smoothing: 0,
+          dither: false,
+          background: "keep",
+          colors: art.palette.length,
+        },
+        art.palette,
+      );
+      art.dotField = {
+        width: job.inputWidth,
+        height: job.inputHeight,
+        assignments: detail.assignments,
+        importance: importance ? Array.from(importance) : undefined,
+      };
+      if (settings.background !== "keep")
+        art.dotField.assignments = detail.assignments.map(
+          (v: number, i: number) => {
+            const x = i % job.inputWidth,
+              y = Math.floor(i / job.inputWidth),
+              cell =
+                Math.min(
+                  art.height - 1,
+                  Math.floor((y / job.inputHeight) * art.height),
+                ) *
+                  art.width +
+                Math.min(
+                  art.width - 1,
+                  Math.floor((x / job.inputWidth) * art.width),
+                );
+            return art.assignments[cell] < 0 ? -1 : v;
+          },
+        );
+      return art;
+    };
     const run = (settings: Settings): Artwork => {
       if (settings.priority === "Color Accuracy" || !job.inputWidth)
-        return processPixels(
-          job.baselineData || job.data,
-          job.width,
-          job.height,
+        return detailField(
+          processPixels(
+            job.baselineData || job.data,
+            job.width,
+            job.height,
+            settings,
+            job.markers,
+          ),
           settings,
-          job.markers,
+          job.data,
         );
       const prepared = featurePrepare(
         job.data,
@@ -43,7 +94,12 @@ self.onmessage = ({ data: job }) => {
           settings,
         ),
       };
-      return art;
+      return detailField(
+        art,
+        settings,
+        prepared.detailData,
+        prepared.detailImportance,
+      );
     };
     const art = run(job.settings);
     let comparisons: Record<string, Artwork> | undefined;

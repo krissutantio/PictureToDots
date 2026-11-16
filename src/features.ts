@@ -278,7 +278,12 @@ export function featurePrepare(
   analysis: SubjectAnalysis | undefined,
   strokes: ImportanceStroke[],
   rect: Box,
-): { data: Uint8ClampedArray; features: FeatureData } {
+): {
+  data: Uint8ClampedArray;
+  features: FeatureData;
+  detailData: Uint8ClampedArray;
+  detailImportance: Float32Array;
+} {
   const { edges } = edgeField(data, w, h),
     map = importanceMap(
       w,
@@ -429,6 +434,8 @@ export function featurePrepare(
     }
   return {
     data: out,
+    detailData: adjusted,
+    detailImportance: map.importance,
     features: {
       importance,
       edges: targetEdges,
