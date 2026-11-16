@@ -32,11 +32,11 @@ Build before running the full browser suite: it also tests `dist/` under `/Pictu
 - Optional self-hosted face landmarks, object detection and scene classification, with generic saliency fallback. Color Accuracy, Balanced, Feature Preservation and Maximum Recognizability priorities share your selected grid and physical marker limits.
 - Source-coordinate importance brush, measured-feature protection and three-strategy comparison thumbnails with a printable comparison PDF. No generated facial landmarks or promised likeness.
 - A Home library for multiple local notebooks and a compact shared navigation bar. The studio fits the viewport with one open step, crop-to-style progression, internally scrollable settings/lists, and mobile Steps/Preview/Export panels.
-- Dot art with regular/staggered placement or **Adaptive · free positions & sizes**. Adaptive marks use continuous positions, independent IDs and individual sizes, with multiple letters permitted per sampling cell. A higher-resolution measured field preserves more observed detail; preview/print share the same geometry. Existing adaptive projects retain their old version until explicitly upgraded. Choose it under **Letter placement**; **Advanced settings → Dot diameter** controls its maximum size, and **Minimum usable dot** controls its minimum.
+- Dot art with regular/staggered placement or **Reference · spaced symbols**. Adaptive marks use continuous positions, independent IDs and individual sizes, with whitespace around individual marks and coarse-to-fine placement, rather than filling every gap. A higher-resolution measured field preserves more observed detail; preview/print share the same geometry. New pages default to reference-style spacing with a 2–3.2 mm mark range; older pages retain their layout and sizes until explicitly upgraded. Choose it under **Letter placement**; **Advanced settings → Dot diameter** controls its maximum size, and **Minimum usable dot** controls its minimum.
 - Adjustable sampling resolution, physical mark sizes, light-gray letters or outlined circles, paper-white regions, cleanup and Floyd–Steinberg dithering. Small regions that cannot receive an adaptive mark are flagged for review.
 - Traditional line art and color-by-letter art, based on edge-aware color segmentation, connected components, adjacent-region merging, closed contour tracing, shared-boundary simplification and interior label placement.
-- New work defaults to a **60-color budget**, with all 60 starter swatches enabled. **Use full marker set** restores that budget after selecting a smaller limit. Full-set matching considers every enabled entry; images need not use all 60. Smaller budgets use CIELAB/Delta E 76 subset selection and avoid near-duplicate inks. Difficulty and sampling resolution remain independent.
-- Unique A–Z/AA–BH keys, wrapped page legends and paginated color keys support all 60 colors. Old saved projects retain their color limits and regular placement.
+- New work defaults to a **60-color budget**, with all 60 chart swatches enabled. **Use full marker set** restores that budget after selecting a smaller limit. Full-set matching considers every enabled entry; images need not use all 60. Smaller budgets use CIELAB/Delta E 76 subset selection and avoid near-duplicate inks. Difficulty and sampling resolution remain independent.
+- Permanent single-character symbols, visible physical marker numbers, wrapped legends and paginated color keys support all 60 colors. Old saved projects retain their color limits, palette and selected layout.
 - Template, colored, source and side-by-side views; zoom and scroll-pan; palette-based dot painting and region recoloring; adjacent-region merging; undo/redo. Mode-specific values and valid mode edits survive switching.
 - Configurable page size, binding clearance, margins, bleed and dot-size limits. Unsafe dot templates are blocked from export; narrow line-art regions omit their labels and show a review warning.
 - PNG at 300 dpi, vector SVG and vector PDF; separate color-key PDFs and outlines-only line-art PDFs.
@@ -48,7 +48,9 @@ Build before running the full browser suite: it also tests `dist/` under `/Pictu
 
 ## Marker accuracy
 
-The supplied purchase link identifies the intended **Ohuhu Maui 60-color, water-based, fine/brush dual-tip set**. The complete official code-to-color mapping remains unverified. The bundled dataset now contains **60 enabled demonstration swatches** so the full-color workflow works by default. These are **not the official Maui 60 ink colors** and contain no invented manufacturer codes. The [official product page](https://ohuhu.com/products/ohuhu-maui-60-colors-dual-tips-water-based-art-markers-brush-fineliner) confirms the set but does not supply the complete chart used by this app. No manufacturer codes, current prices, availability, tip diameters or ink-accuracy claims are fabricated.
+The selected set is the **Ohuhu Maui 60-color, water-based, fine/brush dual-tip set**. The user supplied the retailer's 60-color chart; all 60 printed numbers are now loaded by default. Each marker has a permanent single-character symbol and its physical number is visible in the studio swatch circle and printed keys.
+
+Colors are sampled estimates from that chart image, **not calibrated ink values or official manufacturer sRGB specifications**. No manufacturer color names or unprovided codes are invented. See [PALETTE](docs/PALETTE.md) for the full number/symbol/RGB mapping and migration behavior.
 
 Before using physical markers:
 
@@ -173,3 +175,7 @@ The repository remote is configured at [krissutantio/PictureToDots](https://gith
 - `tests/`: unit/integration and Playwright browser checks.
 
 Photos and projects are processed locally. Model/SDK/WASM files are bundled under `public/vision/`; no CDN or inference endpoint is contacted at runtime. A restrictive CSP and worker fetch guard block outbound SDK telemetry. Real-photo Chromium tests observe zero external HTTP requests. The optional `npm run models:fetch` setup command downloads missing model files; existing files are reused. A purchase-link click navigates to the external retailer. Clearing browser site data can delete projects; export backups regularly.
+
+## Future illustrated line art
+
+The supplied dog/pickup/flowers/pumpkins illustration is documented as a future contour-and-hatching mode in [LINE_ART_REFERENCE](docs/LINE_ART_REFERENCE.md) and [ROADMAP](docs/ROADMAP.md). The present segmented line-art algorithm remains in place.

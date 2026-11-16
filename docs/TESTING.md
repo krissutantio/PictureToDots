@@ -51,10 +51,18 @@ The E2E configuration starts/reuses Vite at port 5173. Production tests serve `d
 - Continuous flower and portrait template/colored PDFs rendered with Poppler and visually reviewed. Distinct measured letter sizes, safe margins and consistent preview/PDF placement are present; no clipping/mark overlap observed. This remains a layout/detail check, not proof of likeness.
 - Navy UI and install icons are separate from marker/artwork colors. Browser tests preserve the original palette-membership and local-only request checks.
 
+## Reference symbols / chart palette verification (2026-11-16)
+
+- `npm test`: **32 tests pass**. Exact chart-code transcription, all 60 enabled entries, permanent unique single-character symbols, deterministic v3 whitespace/size bounds, legacy v1/v2 placement and metadata-only geometry preservation are covered.
+- `npm run build`: passes. Full `npm run test:e2e`: **17 Chromium scenarios pass**.
+- Extended `adaptive.spec.ts` checks one symbol per colored mark, physical codes inside swatches and exported keys, editing/clearing/restoring codes, metadata persistence across recolor undo/redo, symbol stability through palette sorting and saved-project round trips, and explicit v3 upgrade of old projects. Grid-count tests explicitly select regular placement now that fresh projects default to reference spacing.
+- Poppler review: flower and real-photo portrait template/colored PDFs plus all four 60-color key pages. Symbols, physical numbers and margins are readable in rendered output; no clipping/mark overlap observed. This verifies geometry and rendering, not actual printed symbol recognition or photographic likeness.
+- Illustrated contour/hatching remains backlog, not a verified capability. See [LINE_ART_REFERENCE](LINE_ART_REFERENCE.md). Existing segmented line-art and notebook exports still pass the full workflow checks.
+
 ## Remaining acceptance work
 
 - Profile, glasses, varied lighting, actual groups, flowers and landscapes need broader real-photo checks. The multi-face composite is not a real group photo.
-- Obtain the actual Maui 60 code chart or calibrate all physical swatches. Bundled 60-color starter values are unverified demonstrations, not official ink data.
+- Calibrate all physical swatches. Marker numbers now match the supplied retailer chart; its sampled RGB values are approximate, not official ink data. Print/proof all 60 symbols at the smallest chosen size.
 - Physical paper/marker proofing, Safari/Firefox and real-device checks remain manual. Confirm that the chosen range of dot sizes can be reproduced with the user's actual marker pressure/tips.
 
 ## Visual PDF review on this host
@@ -63,4 +71,4 @@ Bundled `pdftoppm` is available, but its default fontconfig path may be invalid.
 
 ## Verification limits
 
-Chromium is automated. Actual marker/paper proofs and Safari/Firefox remain manual. No metric establishes identity likeness. The official marker palette is unverified; calibrate actual inks.
+Chromium is automated. Actual marker/paper proofs and Safari/Firefox remain manual. No metric establishes identity likeness. The chart-derived palette is uncalibrated; calibrate actual inks.

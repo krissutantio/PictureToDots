@@ -1,3 +1,4 @@
+import { glyphSVG, contrastInk } from "./symbols";
 import { dotMarks } from "./dots";
 import { geometry, labelFits, topLegend } from "./processing";
 import { letter, type Artwork, type Project } from "./types";
@@ -17,6 +18,17 @@ export function editedArt(p: Project): Artwork | undefined {
   if (!p.art) return;
   return {
     ...p.art,
+    palette: p.art.palette.map((m) => {
+      const current = p.palette.markers.find((v) => v.id === m.id);
+      return current
+        ? {
+            ...m,
+            name: current.name,
+            code: current.code,
+            symbol: current.symbol,
+          }
+        : m;
+    }),
     assignments: p.art.assignments.map((v, i) =>
       p.settings.mode === "dots" ? (p.edits[i] ?? v) : v,
     ),
@@ -45,7 +57,9 @@ export function artworkSVG(
       body += `<text x="${group.x}" y="${rowY}" font-size="4" fill="#8b9189">${group.label}</text>`;
       group.entries.forEach(({ index: i, x }) => {
         const m = a.palette[i];
-        body += `<circle cx="${x + 3}" cy="${rowY - 2}" r="2.5" fill="${colored ? m.hex : "white"}" stroke="#9caaa1" stroke-width=".4"/><text x="${x + 8}" y="${rowY}" font-size="5" fill="#6a736e">${letter(i)}</text>`;
+        body += `<circle cx="${x + 3}" cy="${rowY - 2}" r="3.5" fill="${colored ? m.hex : "white"}" stroke="#9caaa1" stroke-width=".4"/>${glyphSVG(m, i, x + 11.5, rowY - 2, 5, "#6a736e")}`;
+        if (m.code && m.code.length <= 3)
+          body += `<text x="${x + 3}" y="${rowY - 0.9}" font-size="3.2" text-anchor="middle" fill="${colored ? contrastInk(m.hex) : "#49534c"}">${escapeXML(m.code)}</text>`;
       });
     });
   }
@@ -56,7 +70,7 @@ export function artworkSVG(
           p.edits[i] ?? p.edits[cell] ?? measured ?? a.assignments[cell];
         body += `<g data-cell="${i}" data-mark-size="${diameter}"><circle cx="${x}" cy="${y}" r="${diameter / 2}" fill="${colored ? (color >= 0 ? a.palette[color].hex : "white") : "white"}" stroke="${colored || color < 0 ? "none" : s.guide === "circles" ? "#bcc1ba" : "none"}" stroke-width=".35"/>`;
         if (!colored && s.labels && color >= 0)
-          body += `<text x="${x}" y="${y + font * 0.34}" text-anchor="middle" font-size="${font}" fill="#8b9189">${letter(color)}</text>`;
+          body += glyphSVG(a.palette[color], color, x, y, font, "#8b9189");
         body += "</g>";
       },
     );
@@ -70,7 +84,14 @@ export function artworkSVG(
         r.color >= 0 &&
         labelFits(r, s, g.pitch)
       )
-        body += `<text x="${g.left + r.label[0] * g.pitch}" y="${g.top + r.label[1] * g.pitch + 1.5}" text-anchor="middle" font-size="5" fill="#72786f">${letter(r.color)}</text>`;
+        body += glyphSVG(
+          a.palette[r.color],
+          r.color,
+          g.left + r.label[0] * g.pitch,
+          g.top + r.label[1] * g.pitch,
+          5,
+          "#72786f",
+        );
       body += "</g>";
     });
   }

@@ -1,3 +1,4 @@
+import { isSymbol, markerLabel } from "./symbols";
 import { openDB } from "idb";
 import { defaults, type Project } from "./types";
 const db = () =>
@@ -55,8 +56,16 @@ function validateProjectData(p: unknown): p is Project {
     typeof m.id === "string" &&
     typeof m.name === "string" &&
     /^#[a-f0-9]{6}$/i.test(m.hex) &&
-    typeof m.enabled === "boolean";
+    typeof m.enabled === "boolean" &&
+    (m.symbol === undefined || isSymbol(m.symbol)) &&
+    (m.code === undefined ||
+      (typeof m.code === "string" && m.code.length <= 64));
   if (!x.palette.markers.every(validMarker)) return false;
+  if (
+    new Set(x.palette.markers.map(markerLabel)).size !==
+    x.palette.markers.length
+  )
+    return false;
   const limits: Record<string, [number, number]> = {
     columns: [12, 100],
     colors: [1, 60],
@@ -368,13 +377,18 @@ function validateProjectData(p: unknown): p is Project {
     return false;
   if (
     x.settings.dotLayoutVersion !== undefined &&
-    ![1, 2].includes(x.settings.dotLayoutVersion)
+    ![1, 2, 3].includes(x.settings.dotLayoutVersion)
   )
     return false;
   const dotLayoutVersion =
     x.settings.dotLayoutVersion ??
     (x.settings.dotLayout === "adaptive" ? 1 : 2);
-  x.settings = { ...defaults, ...x.settings, dotLayoutVersion };
+  x.settings = {
+    ...defaults,
+    ...x.settings,
+    dotLayout: x.settings.dotLayout || "regular",
+    dotLayoutVersion,
+  };
   // Cached modes are an optimization, not trusted import input.
   delete x.variants;
   return true;

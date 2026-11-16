@@ -2,7 +2,7 @@
 
 ## Current request
 
-Latest: remove per-cell positioning constraints; add a notebook Home gallery and fixed-height, collapsing-step studio; support iOS Home Screen standalone installation; apply a navy theme and document everything.
+Latest: follow the private reference's roomy, individually sized symbols; load the supplied 60-marker chart with permanent single-character identifiers and visible physical marker numbers. Record the illustrated contour/hatching line-art reference for future work; keep current segmented line art.
 
 Build the browser-only photo-to-dot/line-art and notebook app from the user's initial brief. Reference photos informed staggered light-gray letters, top binding, dark/light keys and a reusable protective sheet. Follow-up adds feature-aware subject/face preservation, reviewable suggested crops, a usable crop editor at 1×, and concise handoff Markdown.
 
@@ -32,10 +32,19 @@ React/Vite studio; dot and segmented line artwork; CIELAB marker matching; manua
 - Added standalone manifest, PNG/SVG icons, Apple metadata, safe-area CSS and offline install-resource caching. Install instructions are on Home and in [INSTALL](INSTALL.md). The user has approved publishing this release; actual iPhone installation remains manual.
 - Checks: **30 unit tests, production build and all 17 Chromium scenarios pass**. Coverage includes high-resolution observed detail, independent mark edits, legacy upgrade, notebook persistence, no document overflow at 1440/1280/1024 widths, mobile panels, subpath manifest/icons and offline Home/model inference. Flower/portrait template and colored PDFs rendered and visually checked; no clipping/overlapping marks observed.
 
+## Reference spacing / chart palette / symbol follow-up (2026-11-16)
+
+- New projects use reference-spacing v3: continuous independent centers, larger marks first in low-detail areas, explicit whitespace and variable 2–3.2 mm diameters. Existing v1/v2 projects retain coordinates and physical limits until explicit upgrade. See [ADAPTIVE_LAYOUT](ADAPTIVE_LAYOUT.md).
+- All 60 default marker numbers now match the user-supplied retailer chart. RGB values are sampled chart estimates, **not calibrated ink or official sRGB data**. Each color has a permanent single-character symbol across images; shared vector outlines render consistently in UI/SVG/PNG/PDF. See [PALETTE](PALETTE.md) for provenance and the full mapping.
+- Swatches display physical numbers, with symbols alongside/in the key. Inline number edits preserve recoloring and undo history. Untouched demo preferences migrate; customized palettes and saved projects remain intact. Old projects offer explicit chart-palette replacement or symbol-only upgrade. Historical AA/BA labels denoted one color each, not two dots.
+- Illustrated contour/hatching mode is **deferred**, with the supplied dog's fur, pickup, flowers, pumpkins and leaves described in [LINE_ART_REFERENCE](LINE_ART_REFERENCE.md); tracked in [ROADMAP](ROADMAP.md). Current segmented line art remains available. Private reference images are not bundled.
+- Checks: **32 unit tests, production build and all 17 Chromium scenarios pass**. Reviewed flower/portrait template and colored PDFs plus all four symbol-key pages with Poppler: no clipping or overlapping marks observed. Browser coverage includes marker-number changes through undo/redo, stable symbols, old-project migration, local-only requests and offline production inference. Physical symbol/ink proofing remains manual.
+- The user authorized pushing and deploying this follow-up. Publishing uses the existing main-branch Pages workflow; verify its successful run and the live assets in Actions before reporting deployment complete. Previous published release: `c37e917` (Home/free placement/PWA/navy).
+
 ## Remaining limits / next work
 
 - Real profile, glasses, lighting, group, flower and landscape photos remain unverified. The multi-face composite is not a real group photo. Full-portrait detail at 24 columns/four colors remains weak; diagnostics warn about small eye separation. Do not claim likeness.
-- Safari/Firefox and physical marker/paper proofs remain manual. Marker demo swatches remain unverified. The GitHub target is configured; check the latest main-branch deployment in Actions.
+- Safari/Firefox and physical marker/paper proofs remain manual. Chart-derived RGB estimates need calibration. The GitHub target is configured; check the latest main-branch deployment in Actions.
 
 ## Environment
 

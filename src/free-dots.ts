@@ -1,5 +1,6 @@
 import type { Artwork, Settings } from "./types";
 import type { DotMark, DotGeometry } from "./dots";
+import { labelLength, labelFootprint } from "./symbols";
 import { letter } from "./types";
 const random = (n: number) => {
   n = Math.imul(n ^ (n >>> 16), 0x45d9f3b);
@@ -67,8 +68,13 @@ export function freeDotMarks(
           clearance[i + w + 1] + Math.SQRT2,
         );
     }
-  const labels = Math.max(1, letter(a.palette.length - 1).length),
-    bucketSize = Math.max(max * 1.7, 1),
+  const reference = s.dotLayoutVersion === 3,
+    spacing = reference ? 1.35 : 1,
+    gap = reference ? 1.2 : 0.6;
+  const labels = reference
+      ? labelLength(a.palette)
+      : Math.max(1, letter(a.palette.length - 1).length),
+    bucketSize = Math.max(max * (reference ? 2.3 : 1.7), 1),
     buckets = new Map<string, DotMark[]>(),
     marks: DotMark[] = [];
   const attempts = Math.min(
@@ -94,17 +100,19 @@ export function freeDotMarks(
     return { i, u, v, fieldCell, cell, detail };
   })
     .filter((c) => field.assignments[c.fieldCell] >= 0)
-    .sort((a, b) => b.detail - a.detail || a.i - b.i);
+    .sort(
+      (a, b) =>
+        (reference ? a.detail - b.detail : b.detail - a.detail) || a.i - b.i,
+    );
   for (const c of candidates) {
     const color = field.assignments[c.fieldCell];
     const diameter =
       min +
       (max - min) * (1 - c.detail) ** 1.4 * (0.88 + 0.12 * random(c.i + 997));
     const font = Math.min(9, diameter * (labels > 1 ? 0.71 : 0.85));
-    const footprint = Math.max(
-      diameter,
-      font * Math.hypot(0.67 * labels, 0.75),
-    );
+    const footprint = reference
+      ? Math.max(diameter, labelFootprint(a.palette, font))
+      : Math.max(diameter, font * Math.hypot(0.67 * labels, 0.75));
     const x = c.u * width,
       y = c.v * height,
       radius = footprint / 2;
@@ -118,7 +126,7 @@ export function freeDotMarks(
         for (const other of buckets.get(`${xx},${yy}`) || [])
           if (
             Math.hypot(x + g.left - other.x, y + g.top - other.y) <
-            (footprint + other.footprint) / 2 + 0.6
+            ((footprint + other.footprint) / 2) * spacing + gap
           ) {
             collision = true;
             break;

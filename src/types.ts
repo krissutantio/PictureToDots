@@ -10,6 +10,7 @@ export type Marker = {
   name: string;
   hex: string;
   code?: string;
+  symbol?: string;
   enabled: boolean;
 };
 export type Palette = {
@@ -25,7 +26,7 @@ export type Settings = {
   columns: number;
   stagger: boolean;
   dotLayout: "regular" | "adaptive";
-  dotLayoutVersion: 1 | 2;
+  dotLayoutVersion: 1 | 2 | 3;
   diameter: number;
   minDot: number;
   labels: boolean;
@@ -139,10 +140,10 @@ export const defaults: Settings = {
   colors: 60,
   columns: 36,
   stagger: true,
-  dotLayout: "regular",
-  dotLayoutVersion: 2,
-  diameter: 2,
-  minDot: 1.5,
+  dotLayout: "adaptive",
+  dotLayoutVersion: 3,
+  diameter: 3.2,
+  minDot: 2,
   labels: true,
   lineLabels: true,
   lineDetail: 96,

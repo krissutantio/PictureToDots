@@ -21,9 +21,13 @@ test("adaptive letters, all 60 colors, edits and exports survive backups", async
   await page.getByRole("button", { name: "Marker Sets", exact: true }).click();
   await expect(page.getByRole("checkbox", { name: /Enable / })).toHaveCount(60);
   await expect(
-    page.getByText("All 60 enabled swatches", { exact: false }),
+    page.getByText("All 60 marker numbers", { exact: false }),
   ).toBeVisible();
   await page.getByRole("button", { name: "Create", exact: true }).click();
+  await page
+    .getByLabel("Letter placement", { exact: true })
+    .selectOption("regular");
+  await expect(pdfButton).toBeEnabled();
   const originalCount = await page.locator(".artwork [data-cell]").count();
   await page.getByRole("button", { name: /Advanced settings/ }).click();
   await page.getByLabel("Dot diameter", { exact: true }).fill("3.2");
@@ -49,20 +53,45 @@ test("adaptive letters, all 60 colors, edits and exports survive backups", async
   expect(before.length).toBeGreaterThan(100);
   expect(new Set(before.map((p) => p[3])).size).toBeGreaterThan(1);
   const sizes = await page
-    .locator(".artwork [data-cell] text")
-    .evaluateAll((nodes) => nodes.map((n) => n.getAttribute("font-size")));
+    .locator(".artwork [data-cell]")
+    .evaluateAll((nodes) => nodes.map((n) => n.getAttribute("data-mark-size")));
   expect(new Set(sizes).size).toBeGreaterThan(1);
+  const chosenSymbol = await page
+    .locator(".legend button")
+    .last()
+    .locator("svg[data-symbol]")
+    .getAttribute("data-symbol");
   await page.locator(".legend button").last().click();
   await page.locator(".artwork [data-cell]").first().click();
   await expect(
     page.getByRole("button", { name: "Undo edit", exact: true }),
   ).toBeEnabled();
   expect(await positions()).toEqual(before);
-  await expect(page.locator(".artwork [data-cell] text").first()).toHaveText(
-    "BH",
+  await expect(
+    page.locator(".artwork [data-cell] path[data-symbol]").first(),
+  ).toHaveAttribute("data-symbol", chosenSymbol!);
+  await expect(
+    page.locator(".artwork [data-cell]").first().locator("circle"),
+  ).toHaveCount(1);
+  const codeInput = page.getByLabel("Selected marker number", { exact: true });
+  const markerNumber = await codeInput.inputValue();
+  await codeInput.fill("");
+  await expect(page.locator(".legend .chosen .swatch-number")).toHaveText("?");
+  await codeInput.fill(markerNumber);
+  await expect(page.locator(".legend .chosen .swatch-number")).toHaveText(
+    markerNumber,
   );
+  expect(await positions()).toEqual(before);
+  await expect(
+    page.getByRole("button", { name: "Undo edit", exact: true }),
+  ).toBeEnabled();
+  const alias = "proof-" + markerNumber;
+  await codeInput.fill(alias);
   await page.getByRole("button", { name: "Undo edit", exact: true }).click();
+  await expect(codeInput).toHaveValue(alias);
   await page.getByRole("button", { name: "Redo edit", exact: true }).click();
+  await expect(codeInput).toHaveValue(alias);
+  await codeInput.fill(markerNumber);
   await page.getByLabel("Maximum colors", { exact: true }).fill("4");
   await expect(pdfButton).toBeEnabled();
   await page
@@ -185,7 +214,7 @@ test("only untouched legacy demo preferences upgrade to the 60-color starter", a
   await expect(
     page.getByRole("button", { name: "Download PDF", exact: true }),
   ).toBeEnabled();
-  const { default: data } = await import("../../src/palettes.json", {
+  const { default: data } = await import("../../src/legacy-demo-palette.json", {
     with: { type: "json" },
   });
   const legacy = {
@@ -289,7 +318,7 @@ test("old IndexedDB adaptive pages retain their layout until explicitly upgraded
   await page.getByRole("button", { name: "Open", exact: true }).click();
   await expect(
     page.getByRole("button", {
-      name: "Upgrade to free placement",
+      name: "Use reference-style spacing",
       exact: true,
     }),
   ).toBeVisible();
@@ -301,7 +330,7 @@ test("old IndexedDB adaptive pages retain their layout until explicitly upgraded
       ),
   ).toBe(true);
   await page
-    .getByRole("button", { name: "Upgrade to free placement", exact: true })
+    .getByRole("button", { name: "Use reference-style spacing", exact: true })
     .click();
   await expect(
     page.getByRole("button", { name: "Download PDF", exact: true }),
@@ -320,6 +349,6 @@ test("old IndexedDB adaptive pages retain their layout until explicitly upgraded
   const saved = JSON.parse(
     (await readFile((await (await pending).path())!)).toString(),
   );
-  expect(saved.settings.dotLayoutVersion).toBe(2);
+  expect(saved.settings.dotLayoutVersion).toBe(3);
   expect(saved.edits["0"]).toBe(1);
 });

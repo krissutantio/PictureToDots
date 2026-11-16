@@ -1,3 +1,4 @@
+import { labelLength, labelFootprint } from "./symbols";
 import { freeDotMarks } from "./free-dots";
 import type { Artwork, Settings } from "./types";
 import { letter } from "./types";
@@ -39,10 +40,13 @@ export function dotMarks(a: Artwork, s: Settings, g: DotGeometry): DotMark[] {
   const existing = cache.get(a)?.get(key);
   if (existing) return existing;
   const result: DotMark[] = [];
-  const labelLength = Math.max(1, letter(a.palette.length - 1).length);
+  const labels =
+    s.dotLayoutVersion === 3
+      ? labelLength(a.palette)
+      : Math.max(1, letter(a.palette.length - 1).length);
   if (s.dotLayout !== "adaptive") {
     a.assignments.forEach((color, cell) => {
-      const font = Math.min(g.font, (g.pitch * 0.75) / (0.67 * labelLength));
+      const font = Math.min(g.font, (g.pitch * 0.75) / (0.67 * labels));
       result.push({
         id: cell,
         cell,
@@ -57,11 +61,13 @@ export function dotMarks(a: Artwork, s: Settings, g: DotGeometry): DotMark[] {
         font,
         footprint: Math.max(
           g.diameter,
-          font * Math.hypot(0.67 * labelLength, 0.75),
+          s.dotLayoutVersion === 3
+            ? labelFootprint(a.palette, font)
+            : font * Math.hypot(0.67 * labels, 0.75),
         ),
       });
     });
-  } else if (s.dotLayoutVersion === 2) {
+  } else if (s.dotLayoutVersion >= 2) {
     result.push(...freeDotMarks(a, s, g));
   } else {
     const minDiameter = (s.minDot * 72) / 25.4,
@@ -112,10 +118,10 @@ export function dotMarks(a: Artwork, s: Settings, g: DotGeometry): DotMark[] {
         const t = Math.max(0.05, Math.min(1, 1 - detail * 0.85));
         const diameter =
           minDiameter + (maxDiameter - minDiameter) * (0.15 + 0.85 * t);
-        const font = Math.min(8, diameter * (labelLength > 1 ? 0.71 : 0.85));
+        const font = Math.min(8, diameter * (labels > 1 ? 0.71 : 0.85));
         const footprint = Math.max(
           diameter,
-          font * Math.hypot(0.67 * labelLength, 0.75),
+          font * Math.hypot(0.67 * labels, 0.75),
         );
         // Keep a density budget tied to the chosen resolution, with extra space in flat areas.
         const packing = Math.max(footprint + 0.6, g.pitch * (0.72 + 0.35 * t));
@@ -208,7 +214,7 @@ export function dotPlacementWarnings(
   const marks = dotMarks(a, s, g),
     cached = warningCache.get(marks);
   if (cached) return cached;
-  const field = s.dotLayoutVersion === 2 && a.dotField ? a.dotField : a;
+  const field = s.dotLayoutVersion >= 2 && a.dotField ? a.dotField : a;
   const represented = new Set(
       marks.map(
         (m) =>

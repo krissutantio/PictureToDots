@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { markerLabel } from "../src/symbols";
 import { dotMarks } from "../src/dots";
 import {
   geometry,
@@ -102,7 +103,9 @@ describe("adaptive physical placement", () => {
         (m) => m.slice(1),
       );
     expect(circles(after)).toEqual(circles(before));
-    expect(after).toContain(">BH</text>");
+    expect(after.includes(`data-symbol="${palette.markers[59].symbol}"`)).toBe(
+      true,
+    );
     expect(validateProject(JSON.parse(JSON.stringify(p)))).toBe(true);
     const impossible = { ...settings, diameter: 1, minDot: 3 };
     expect(printWarnings(impossible, a).length).toBeGreaterThan(0);
@@ -118,13 +121,32 @@ describe("full 60-color defaults and printable keys", () => {
     expect(palette.markers).toHaveLength(60);
     expect(palette.markers.every((m) => m.enabled)).toBe(true);
     expect(palette.verified).toBe(false);
-    expect(palette.note).toContain("NOT an official");
-    const labels = Array.from({ length: 60 }, (_, i) => letter(i));
-    expect(labels[25]).toBe("Z");
-    expect(labels[26]).toBe("AA");
-    expect(labels[59]).toBe("BH");
+    expect(palette.note).toContain("not calibrated physical ink");
+    const labels = palette.markers.map(markerLabel);
     expect(new Set(labels).size).toBe(60);
-    expect(labels.every((l) => /^[A-Z]{1,2}$/.test(l))).toBe(true);
+    expect(labels.every((l) => Array.from(l).length === 1)).toBe(true);
+    const codes = [
+      1, 2, 3, 4, 6, 7, 8, 9, 11, 15, 17, 18, 20, 23, 24, 27, 28, 29, 30, 31,
+      32, 33, 35, 38, 39, 40, 41, 42, 45, 46, 48, 49, 50, 51, 52, 53, 54, 56,
+      58, 60, 61, 62, 63, 64, 66, 67, 70, 72, 73, 75, 76, 81, 82, 83, 85, 87,
+      88, 93, 99, 100,
+    ];
+    expect(palette.markers.map((m) => Number(m.code))).toEqual(codes);
+    expect(
+      labels.some((l) => ["I", "O", "B", "S", "Z", "G", "0", "5"].includes(l)),
+    ).toBe(false);
+    const selected = selectPalette(
+      [
+        [30, 20, 10],
+        [80, -20, 10],
+      ],
+      palette.markers,
+      4,
+    );
+    for (const m of selected)
+      expect(markerLabel(m, 0)).toBe(
+        palette.markers.find((p) => p.id === m.id)!.symbol,
+      );
     expect(selectPalette([[0, 0, 0]], palette.markers, 60)).toHaveLength(60);
     expect(
       selectPalette(
@@ -243,5 +265,42 @@ describe("continuous adaptive layout compatibility", () => {
     const bad = JSON.parse(JSON.stringify(p));
     bad.art.dotField.assignments[0] = 1000;
     expect(validateProject(bad)).toBe(false);
+  });
+});
+
+describe("reference spacing and stable marker metadata", () => {
+  it("leaves breathing room instead of filling every possible gap", () => {
+    const a = art(),
+      g = geometry(settings, a.width, a.height);
+    const dense = dotMarks(a, { ...settings, dotLayoutVersion: 2 }, g),
+      reference = dotMarks(a, { ...settings, dotLayoutVersion: 3 }, g);
+    expect(reference.length).toBeLessThan(dense.length * 0.85);
+    for (let i = 0; i < reference.length; i++)
+      for (let j = i + 1; j < reference.length; j++) {
+        const a = reference[i],
+          b = reference[j];
+        expect(Math.hypot(a.x - b.x, a.y - b.y) + 1e-8).toBeGreaterThanOrEqual(
+          ((a.footprint + b.footprint) / 2) * 1.35 + 1.2,
+        );
+      }
+  });
+  it("shows current physical codes in SVG and PDF without moving or recoloring the artwork", async () => {
+    const p = project(),
+      before = dotMarks(p.art!, p.settings, geometry(p.settings, 24, 28));
+    p.palette = {
+      ...p.palette,
+      markers: p.palette.markers.map((m, i) =>
+        i === 0 ? { ...m, code: "137" } : m,
+      ),
+    };
+    p.edits[before[0].id] = 1;
+    const svg = artworkSVG(p, true);
+    expect(svg.includes(">137</text>")).toBe(true);
+    expect(dotMarks(p.art!, p.settings, geometry(p.settings, 24, 28))).toEqual(
+      before,
+    );
+    expect((await PDFDocument.load(await artworkPDF([p]))).getPageCount()).toBe(
+      1,
+    );
   });
 });

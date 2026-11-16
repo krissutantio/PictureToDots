@@ -24,15 +24,10 @@ remains the underlying detail budget, not a promise of one mark per cell.
 ## Palette follow-up
 
 New work defaults to a 60-color budget and all enabled swatches are eligible;
-less complex images need not use every color. Support unique A–Z, AA–BH labels,
-wrapped page legends and paginated color keys. Older projects keep their stored
+less complex images need not use every color. The original implementation supported A–Z/AA–BH labels; current defaults use the permanent single-character symbols in [PALETTE](PALETTE.md), wrapped legends and paginated keys. Older projects keep their stored
 color limits and palettes. Difficulty presets remain explicit smaller limits.
 
-The selected product is Ohuhu Maui 60, water-based brush/fineliner. The official
-product page confirms the set, but a complete official code-to-color chart has
-not been verified. Any bundled 60-color starter collection must remain explicitly
-unverified demonstration colors, with no invented manufacturer codes. Physical
-matching still requires the actual set chart or calibration scan.
+The selected product is Ohuhu Maui 60, water-based brush/fineliner. Marker numbers now come from the retailer chart supplied by the user; RGB values are sampled chart estimates rather than calibrated ink. Historical demo data is retained only for migration. See [PALETTE](PALETTE.md).
 
 ## Acceptance
 
@@ -78,3 +73,19 @@ Preview, SVG, PNG, PDF, comparisons and notebook output consume the same marks.
 A `dotField` is optional for older backups and strictly validated on import.
 Higher-resolution fields add backup/storage cost, so quota failures must remain
 visible and buffers must stay bounded.
+
+## Reference-spacing correction (v3)
+
+The close-up supplied as IMG_3926.HEIC shows individually spaced, differently
+sized characters following color shapes; it is not a request to pack additional
+characters into every gap. Version 3 places larger candidates first, keeps small
+marks tied to observed detail and requires increased whitespace around label/mark
+footprints. It retains continuous coordinates, shared print geometry, physical
+limits and source edit compatibility. New pages use this layout by default with
+2–3.2 mm marks; upgrading an older page preserves its chosen size limits.
+
+The reference's one-character readability is addressed by the permanent
+60-character marker mapping in [PALETTE](PALETTE.md). Each symbol is one mark;
+size does not encode another color or multiple marks. Existing v1/v2 geometry and
+old projects stay intact until explicit upgrade. The supplied photographs and
+screenshots remain private; tests use generated fields and existing public fixtures.

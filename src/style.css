@@ -1969,3 +1969,29 @@ input[type="checkbox"] {
 .app-header a:focus-visible {
   outline-color: #a4c7f2;
 }
+/* Stable single-character symbols plus actual physical marker numbers. */
+.marker-glyph {
+  width: 13px;
+  height: 13px;
+  display: inline-block;
+  vertical-align: middle;
+}
+.legend .swatch {
+  display: grid;
+  place-items: center;
+  min-width: 27px;
+  min-height: 27px;
+}
+.swatch-number {
+  font-size: 9px;
+  font-weight: 650;
+  line-height: 1;
+  max-width: 25px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.marker-code-editor {
+  padding: 8px;
+  background: #f0f4fa;
+  border-radius: 6px;
+}

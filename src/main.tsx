@@ -74,6 +74,15 @@ import { rotatePoint } from "./crop";
 import type { SubjectKind } from "./subject-types";
 import type { Marker } from "./types";
 import { dotMarks, dotPlacementWarnings } from "./dots";
+import { MarkerGlyph } from "./MarkerGlyph";
+import {
+  markerLabel,
+  symbolDescription,
+  paletteIdentity,
+  contrastInk,
+  withSymbols,
+} from "./symbols";
+import legacyDemo from "./legacy-demo-palette.json";
 import { StepPanel } from "./StepPanel";
 import { Home } from "./Home";
 import "./style.css";
@@ -96,11 +105,11 @@ const variantKey = (p: Project, settings = p.settings) =>
     p.image,
     settings.mode === "dots" &&
       settings.dotLayout === "adaptive" &&
-      settings.dotLayoutVersion === 2,
+      settings.dotLayoutVersion >= 2,
     Object.fromEntries(
       Object.entries(settings).filter(([key]) => !presentationKeys.has(key)),
     ),
-    p.palette,
+    paletteIdentity(p.palette.markers),
     p.framing,
     p.analysis,
     p.importanceStrokes,
@@ -296,16 +305,19 @@ function App() {
         } else if (n) setNotebook(n);
         if (p) {
           const untouched =
-            p.name === "Ohuhu Maui 60 — calibration workspace" &&
+            [
+              "Ohuhu Maui 60 — calibration workspace",
+              "Maui 60 workspace — unverified starter colors",
+            ].includes(p.name) &&
             p.paper === "Uncoated paper, not yet calibrated" &&
             !p.verified &&
-            p.markers?.length === 18 &&
+            [18, 60].includes(p.markers?.length) &&
             p.markers.every(
               (m: Marker, i: number) =>
-                m.id === paletteData.markers[i].id &&
-                m.hex === paletteData.markers[i].hex &&
+                m.id === legacyDemo.markers[i].id &&
+                m.hex === legacyDemo.markers[i].hex &&
                 m.enabled &&
-                m.name === paletteData.markers[i].name &&
+                m.name === legacyDemo.markers[i].name &&
                 !m.code,
             );
           setProject((v) => ({
@@ -525,6 +537,7 @@ function App() {
       settings: {
         ...defaults,
         ...p.settings,
+        dotLayout: p.settings.dotLayout || "regular",
         dotLayoutVersion:
           p.settings.dotLayoutVersion ??
           (p.settings.dotLayout === "adaptive" ? 1 : 2),
@@ -574,7 +587,25 @@ function App() {
     }
   }
   const updatePalette = (p: Palette) => {
-    setProject((v) => ({ ...v, palette: p, edits: {} }));
+    const identity = paletteIdentity(project.palette.markers);
+    if (identity === paletteIdentity(p.markers)) {
+      const refresh = (items: Project[]) =>
+        items.map((item) =>
+          paletteIdentity(item.palette.markers) === identity
+            ? { ...item, palette: p }
+            : item,
+        );
+      setPast(refresh);
+      setFuture(refresh);
+    }
+    setProject((v) => ({
+      ...v,
+      palette: p,
+      edits:
+        paletteIdentity(v.palette.markers) === paletteIdentity(p.markers)
+          ? v.edits
+          : {},
+    }));
     savePreference("palette", p).catch(report);
   };
   async function importPalette(file?: File) {
@@ -598,11 +629,13 @@ function App() {
         name: p.name,
         verified: false,
         paper: p.paper || "Unspecified paper",
-        markers: p.markers.map((m: object, i: number) => ({
-          ...m,
-          id: `custom-${i}`,
-          enabled: true,
-        })),
+        markers: withSymbols(
+          p.markers.map((m: object, i: number) => ({
+            ...m,
+            id: `custom-${i}`,
+            enabled: true,
+          })),
+        ),
       } as Palette);
       setNotice("Palette imported");
     } catch (e) {
@@ -733,7 +766,7 @@ function App() {
       setNotice(
         n < 0
           ? "Uncolored paper"
-          : `${letter(n)} — ${art!.palette[n].name}. Select a swatch to paint.`,
+          : `${markerLabel(art!.palette[n], n)} — marker ${art!.palette[n].code || "code not entered"}, ${art!.palette[n].name}. Select a swatch to paint.`,
       );
     }
   }
@@ -1223,26 +1256,26 @@ function App() {
                       onChange={(e) =>
                         settings({
                           dotLayout: e.target.value as Settings["dotLayout"],
-                          dotLayoutVersion: 2,
+                          dotLayoutVersion: 3,
                         })
                       }
                     >
                       <option value="regular">Regular grid</option>
                       <option value="adaptive">
-                        Adaptive · free positions & sizes
+                        Reference · spaced symbols
                       </option>
                     </select>
                     <small>
                       {s.dotLayout === "adaptive"
-                        ? "Free placement follows measured detail, with individual letter sizes inside your physical limits."
+                        ? "Individually sized symbols with breathing room, following observed shapes. Each symbol is one colored mark."
                         : "Even spacing with optional staggered rows."}
                     </small>
-                    {s.dotLayout === "adaptive" && s.dotLayoutVersion === 1 && (
+                    {s.dotLayout === "adaptive" && s.dotLayoutVersion < 3 && (
                       <button
                         className="text-button"
-                        onClick={() => settings({ dotLayoutVersion: 2 })}
+                        onClick={() => settings({ dotLayoutVersion: 3 })}
                       >
-                        Upgrade to free placement
+                        Use reference-style spacing
                       </button>
                     )}
                   </label>
@@ -1801,15 +1834,15 @@ function App() {
                     {project.palette.name}.{" "}
                     {project.palette.verified
                       ? "User-verified palette."
-                      : "Unverified demo colors — calibrate before matching physical markers."}
+                      : "Chart color estimates — calibrate inks on your paper."}
                   </p>
                   <div className="legend">
                     {art?.palette.map((m, i) => (
                       <button
                         className={paint === i ? "chosen" : ""}
                         key={m.id}
-                        aria-label={`${letter(i)} ${m.name}`}
-                        title={`${letter(i)} · ${m.name}`}
+                        aria-label={`${markerLabel(m, i)} marker ${m.code || "code not entered"} ${symbolDescription(m, i)}`}
+                        title={`${markerLabel(m, i)} · marker ${m.code || "code not entered"} · ${m.name}`}
                         onClick={() => {
                           setPaint(paint === i ? null : i);
                           setMerge(false);
@@ -1817,9 +1850,16 @@ function App() {
                       >
                         <span
                           className="swatch"
-                          style={{ background: m.hex }}
-                        />
-                        <strong>{letter(i)}</strong>
+                          style={{
+                            background: m.hex,
+                            color: contrastInk(m.hex),
+                          }}
+                        >
+                          <b className="swatch-number">{m.code || "?"}</b>
+                        </span>
+                        <strong>
+                          <MarkerGlyph marker={m} index={i} />
+                        </strong>
                         <span>
                           {m.name}
                           <small>{m.code || "Custom / unverified"}</small>
@@ -1828,6 +1868,53 @@ function App() {
                       </button>
                     ))}
                   </div>
+                  <p className="hint">
+                    One symbol = one colored mark. Numbers inside swatches
+                    identify the physical markers.
+                  </p>
+                  {paint !== null && paint >= 0 && art?.palette[paint] && (
+                    <label className="field marker-code-editor">
+                      Marker number for {markerLabel(art.palette[paint], paint)}
+                      <input
+                        aria-label="Selected marker number"
+                        disabled={busy}
+                        maxLength={64}
+                        placeholder="Enter the number on your marker"
+                        value={art.palette[paint].code || ""}
+                        onChange={(e) => {
+                          const id = art.palette[paint].id;
+                          updatePalette({
+                            ...project.palette,
+                            markers: project.palette.markers.map((m) =>
+                              m.id === id ? { ...m, code: e.target.value } : m,
+                            ),
+                          });
+                        }}
+                      />
+                    </label>
+                  )}
+                  {project.palette.markers.length <= 60 &&
+                    project.palette.markers.some((m) => !m.symbol) && (
+                      <button
+                        className="text-button"
+                        onClick={() =>
+                          updatePalette({
+                            ...project.palette,
+                            markers: withSymbols(project.palette.markers),
+                          })
+                        }
+                      >
+                        Use single-character symbols
+                      </button>
+                    )}
+                  <button
+                    className="text-button"
+                    onClick={() =>
+                      updatePalette(structuredClone(initialPalette))
+                    }
+                  >
+                    Load Maui 60 chart palette
+                  </button>
                   <button
                     className="text-button"
                     onClick={() => setTab("Marker Sets")}

@@ -49,3 +49,9 @@ Full-set matching bypasses subset pruning when the budget covers all enabled mar
 ## Standalone web app
 
 See [INSTALL](INSTALL.md) for manifest/icon paths, iOS installation, offline behavior and device-verification limits. [WORKSPACE](WORKSPACE.md) documents multi-notebook preference migration and the fixed-height shell. Dot workers attach a validated high-resolution color/importance field for continuous placement while retaining the original regular artwork for compatibility.
+
+## Marker identity and reference spacing
+
+See [PALETTE](PALETTE.md) for the chart source, permanent symbol mapping and code display. `symbols.ts` and `reference-symbols.json` provide shared vector glyphs; `MarkerGlyph.tsx` renders the same paths in the UI. Matching signatures use marker IDs/hex/enabled state, not human labels. `editedArt` resolves current names/codes/symbols without recoloring saved assignments. Metadata edits update history snapshots so undo does not discard a newly entered code. V3 placement is coarse-to-fine with whitespace; legacy geometry remains versioned.
+
+The future illustrated-hatching mode is specified only in [LINE_ART_REFERENCE](LINE_ART_REFERENCE.md) and [ROADMAP](ROADMAP.md); its algorithm is not implemented.

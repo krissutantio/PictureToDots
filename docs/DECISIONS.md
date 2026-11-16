@@ -1,7 +1,7 @@
 # Decisions worth preserving
 
 - **No backend:** GitHub Pages is the intended host. No server image processing, user account or paid service.
-- **Honest palette:** local demo swatches are not an invented Ohuhu color chart. Real identifiers/values come from user import or paper calibration.
+- **Honest palette:** the supplied retailer chart provides all 60 printed marker numbers. RGB is explicitly a sampled chart estimate, not calibrated physical ink or official manufacturer sRGB. Legacy demo data is migration-only.
 - **Classical + local model pipeline:** retain Color Accuracy; add optional structure-aware strategies. Facial landmarks weight observed pixels, never generate canonical facial shapes.
 - **No semantic hair claims:** face landmarks do not identify hairstyle/ears. Hair preservation uses an edge-supported silhouette band and user brush corrections.
 - **Framing is reversible:** old 1× sliders could not move along a dimension already filled by the source. New explicit crop-center geometry permits white paper margins when panning beyond the image; users can disable margins to constrain the frame.
@@ -13,8 +13,12 @@
 - **Deployment stays explicit:** `origin` is now `https://github.com/krissutantio/PictureToDots.git`; the initial commit was pushed with user approval. Deployment status has not been verified. Future publishing remains explicit.
 
 - **Adaptive layout is opt-in:** irregular centers and variable sizes are deterministic packing from measured color/importance, with marker/letter collision checks. Legacy recoloring uses source cell IDs; v2 free marks have independent stable IDs, with source-cell compatibility for old edits. Recoloring does not regenerate positions. Resolution remains a sampling budget; skipped tiny regions are reported.
-- **Full palette means eligibility:** new work has all 60 enabled starter colors available, with no requirement to force every color into an image. These are unverified demonstration swatches, not an official Maui chart. Old/custom palettes remain unchanged. Two-letter labels and paginated keys remove the old 26-color ceiling.
+- **Full palette means eligibility:** new work has all 60 enabled starter colors available, with no requirement to force every color into an image. The active defaults are numbered chart estimates. Old/custom palettes remain unchanged until an explicit palette change. Permanent one-character vector symbols remove the need for ambiguous two-letter identifiers; old backups retain compatibility.
 
 - **Home plus a bounded editor:** keep a compact shared top bar, with notebook creation/reopening on Home. One studio step opens at a time; the document does not scroll. Advanced settings, lists and zoomed artwork can scroll within their own panels.
 - **Install as a web app:** relative manifest/icon URLs preserve Pages subpath hosting; Apple standalone metadata supports older Safari. Cache install assets, but leave model caching lazy. Chromium configuration checks do not prove an actual iOS Share-sheet installation.
 - **Navy is chrome, not ink:** theme UI/navigation and install icons; never recolor the physical palette or exported art to match the theme.
+
+- **Reference spacing (v3):** larger candidates are placed first and label footprints receive explicit whitespace. New pages use the reference layout rather than opening on the regular grid. Existing v1/v2 layouts and physical sizes are preserved until chosen otherwise.
+- **Permanent symbols:** marker IDs own their symbol; selected-palette order never chooses it. Single-digit physical codes use their own digit. Shared licensed vector outlines keep pictorial characters consistent in SVG/PNG/PDF without font services. Code/name edits are metadata and preserve matching, recoloring, geometry and history.
+- **Deferred illustrated line art:** document the supplied dog/truck hatching reference in [LINE_ART_REFERENCE](LINE_ART_REFERENCE.md); retain current segmentation for now, per the user.

@@ -5,6 +5,8 @@ import {
   type PDFPage,
   type PDFFont,
 } from "pdf-lib";
+import { markerGlyph, markerLabel, contrastInk } from "./symbols";
+import type { Marker } from "./types";
 import { dotMarks } from "./dots";
 import JSZip from "jszip";
 import {
@@ -42,6 +44,36 @@ function text(
     value += "...";
   }
   page.drawText(value, { x, y, size, font, color: ink });
+}
+function drawMarker(
+  page: PDFPage,
+  font: PDFFont,
+  marker: Marker,
+  index: number,
+  x: number,
+  y: number,
+  size: number,
+  inkColor = gray,
+) {
+  const glyph = markerGlyph(marker, index);
+  if (glyph) {
+    const scale = size * 0.78;
+    page.drawSvgPath(glyph.path, {
+      x: x - scale / 2,
+      y: y + scale / 2,
+      scale,
+      color: inkColor,
+    });
+  } else {
+    const label = markerLabel(marker, index);
+    page.drawText(label, {
+      x: x - font.widthOfTextAtSize(label, size) / 2,
+      y: y - size * 0.34,
+      font,
+      size,
+      color: inkColor,
+    });
+  }
 }
 async function setup() {
   const doc = await PDFDocument.create();
@@ -91,12 +123,20 @@ export async function artworkPDF(
           page.drawCircle({
             x: x(xx + 3),
             y: y(rowY - 2),
-            size: 2.5,
+            size: 3.5,
             color: colored ? color(m.hex) : pdfRGB(1, 1, 1),
             borderColor: gray,
             borderWidth: 0.4,
           });
-          text(page, font, letter(i), x(xx + 8), y(rowY), 5);
+          drawMarker(page, font, m, i, x(xx + 11.5), y(rowY - 2), 5);
+          if (m.code && m.code.length <= 3)
+            page.drawText(ascii(m.code), {
+              x: x(xx + 3) - font.widthOfTextAtSize(ascii(m.code), 3.2) / 2,
+              y: y(rowY - 2) - 3.2 * 0.34,
+              font,
+              size: 3.2,
+              color: colored ? color(contrastInk(m.hex)) : gray,
+            });
         });
       });
     if (a.mode === "dots") {
@@ -114,16 +154,8 @@ export async function artworkPDF(
               borderColor: gray,
               borderWidth: colored ? 0 : 0.35,
             });
-          if (!colored && s.labels) {
-            const label = letter(n);
-            page.drawText(label, {
-              x: x(xx) - font.widthOfTextAtSize(label, size) / 2,
-              y: y(yy) - size * 0.34,
-              font,
-              size,
-              color: gray,
-            });
-          }
+          if (!colored && s.labels)
+            drawMarker(page, font, a.palette[n], n, x(xx), y(yy), size);
         },
       );
     } else
@@ -147,12 +179,13 @@ export async function artworkPDF(
           r.color >= 0 &&
           labelFits(r, s, g.pitch)
         )
-          text(
+          drawMarker(
             page,
             font,
-            letter(r.color),
-            x(g.left + r.label[0] * g.pitch) - 1.6,
-            y(g.top + r.label[1] * g.pitch) - 1.5,
+            a.palette[r.color],
+            r.color,
+            x(g.left + r.label[0] * g.pitch),
+            y(g.top + r.label[1] * g.pitch),
             5,
           );
       }
@@ -213,8 +246,16 @@ export async function keyPDF(projects: Project[]) {
       a.palette.forEach((m, j) => {
         const x = 78 + (j % 12) * 22,
           y = yy - Math.floor(j / 12) * 14;
-        page!.drawCircle({ x, y: y + 2, size: 2.6, color: color(m.hex) });
-        text(page!, font, letter(j), x + 5, y, 5);
+        page!.drawCircle({ x, y: y + 2, size: 3.5, color: color(m.hex) });
+        if (m.code && m.code.length <= 3)
+          page!.drawText(ascii(m.code), {
+            x: x - font.widthOfTextAtSize(ascii(m.code), 3.2) / 2,
+            y: y + 2 - 3.2 * 0.34,
+            font,
+            size: 3.2,
+            color: color(contrastInk(m.hex)),
+          });
+        drawMarker(page!, font, m, j, x + 8, y + 2, 5);
       });
       yy -= height;
     }
@@ -242,12 +283,13 @@ export async function keyPDF(projects: Project[]) {
         text(
           page,
           font,
-          `${letter(offset + j)}  ${m.code || "Unverified code"} - ${m.name}`,
-          42,
+          `${m.code ? "Marker #" + m.code : "Code not entered"} - ${m.name}`,
+          56,
           yy - 3,
           7,
           width - 93,
         );
+        drawMarker(page, font, m, offset + j, 45, yy, 8);
         page.drawRectangle({
           x: width - 43,
           y: yy - 5,
@@ -308,11 +350,12 @@ export async function calibrationPDF(palette: Palette) {
         text(
           page,
           font,
-          `${offset + j + 1}: ${m.code || m.name}`.slice(0, 21),
+          `${m.code ? "Marker #" + m.code : m.name}`.slice(0, 21),
           x + 8,
           y - 64,
           7,
         );
+      if (m?.symbol) drawMarker(page, font, m, offset + j, x + 94, y - 61, 8);
     }
     text(
       page,

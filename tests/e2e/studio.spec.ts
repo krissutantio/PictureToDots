@@ -23,6 +23,12 @@ test("full local workflow: modes, edits, saving and all exports", async ({
     page.getByRole("button", { name: "Download PDF", exact: true }),
   ).toBeEnabled();
   await expect(page.locator("[data-cell]").first()).toBeVisible();
+  await page
+    .getByLabel("Letter placement", { exact: true })
+    .selectOption("regular");
+  await expect(
+    page.getByRole("button", { name: "Download PDF", exact: true }),
+  ).toBeEnabled();
   const count = await page.locator("[data-cell]").count();
   await page.getByLabel("Difficulty", { exact: true }).selectOption("Beginner");
   await expect(
