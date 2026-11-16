@@ -1,0 +1,45 @@
+{
+  "name": "Ohuhu Maui 60 — calibration workspace",
+  "verified": false,
+  "paper": "Uncoated paper, not yet calibrated",
+  "brand": "Ohuhu",
+  "count": 60,
+  "tips": ["Fine", "Brush"],
+  "purchase": "https://www.target.com/p/ohuhu-markers-for-adult-coloring-books-no-bleeding-60-colors-water-based-dual-tips-fineliner-brush-drawing-pens-art-markers-maui-black/-/A-1007057547",
+  "note": "The official 60-color mapping has not been verified. These 18 demonstration swatches are NOT claimed to match Ohuhu ink. Replace them with your physical marker identifiers and measured swatches before matching a real set.",
+  "markers": [
+    {
+      "id": "demo-1",
+      "name": "Deep forest",
+      "hex": "#285447",
+      "enabled": true
+    },
+    { "id": "demo-2", "name": "Leaf green", "hex": "#66834d", "enabled": true },
+    { "id": "demo-3", "name": "Sage", "hex": "#9cae7d", "enabled": true },
+    { "id": "demo-4", "name": "Sky blue", "hex": "#8bc1cd", "enabled": true },
+    { "id": "demo-5", "name": "Ocean", "hex": "#447e9c", "enabled": true },
+    { "id": "demo-6", "name": "Midnight", "hex": "#334b69", "enabled": true },
+    {
+      "id": "demo-7",
+      "name": "Butter yellow",
+      "hex": "#efd16b",
+      "enabled": true
+    },
+    { "id": "demo-8", "name": "Marigold", "hex": "#dfa130", "enabled": true },
+    { "id": "demo-9", "name": "Coral", "hex": "#df695d", "enabled": true },
+    { "id": "demo-10", "name": "Rose", "hex": "#db9bac", "enabled": true },
+    { "id": "demo-11", "name": "Blush", "hex": "#edc4c4", "enabled": true },
+    { "id": "demo-12", "name": "Berry", "hex": "#9e4e66", "enabled": true },
+    { "id": "demo-13", "name": "Lavender", "hex": "#aaa0c3", "enabled": true },
+    { "id": "demo-14", "name": "Violet", "hex": "#75628e", "enabled": true },
+    { "id": "demo-15", "name": "Sand", "hex": "#d3b18a", "enabled": true },
+    {
+      "id": "demo-16",
+      "name": "Terracotta",
+      "hex": "#b27b59",
+      "enabled": true
+    },
+    { "id": "demo-17", "name": "Umber", "hex": "#705547", "enabled": true },
+    { "id": "demo-18", "name": "Charcoal", "hex": "#343e3b", "enabled": true }
+  ]
+}
