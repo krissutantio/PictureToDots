@@ -2,7 +2,7 @@
 
 ## Current request
 
-Latest: follow the private reference's roomy, individually sized symbols; load the supplied 60-marker chart with permanent single-character identifiers and visible physical marker numbers. Record the illustrated contour/hatching line-art reference for future work; keep current segmented line art.
+Latest: continue the portrait recognizability priority. Implemented an opt-in **Portrait Simplification** strategy and compared it locally against the current baseline on both reference photos. Read [PORTRAIT_SIMPLIFICATION](PORTRAIT_SIMPLIFICATION.md) for implementation, constraints, proof results and remaining visual acceptance.
 
 Build the browser-only photo-to-dot/line-art and notebook app from the user's initial brief. Reference photos informed staggered light-gray letters, top binding, dark/light keys and a reusable protective sheet. Follow-up adds feature-aware subject/face preservation, reviewable suggested crops, a usable crop editor at 1×, and concise handoff Markdown.
 
@@ -39,9 +39,17 @@ React/Vite studio; dot and segmented line artwork; CIELAB marker matching; manua
 - Swatches display physical numbers, with symbols alongside/in the key. Inline number edits preserve recoloring and undo history. Untouched demo preferences migrate; customized palettes and saved projects remain intact. Old projects offer explicit chart-palette replacement or symbol-only upgrade. Historical AA/BA labels denoted one color each, not two dots.
 - Illustrated contour/hatching mode is **deferred**, with the supplied dog's fur, pickup, flowers, pumpkins and leaves described in [LINE_ART_REFERENCE](LINE_ART_REFERENCE.md); tracked in [ROADMAP](ROADMAP.md). Current segmented line art remains available. Private reference images are not bundled.
 - Checks: **32 unit tests, production build and all 17 Chromium scenarios pass**. Reviewed flower/portrait template and colored PDFs plus all four symbol-key pages with Poppler: no clipping or overlapping marks observed. Browser coverage includes marker-number changes through undo/redo, stable symbols, old-project migration, local-only requests and offline production inference. Physical symbol/ink proofing remains manual.
-- The user authorized pushing and deploying this follow-up. Publishing uses the existing main-branch Pages workflow; verify its successful run and the live assets in Actions before reporting deployment complete. Previous published release: `c37e917` (Home/free placement/PWA/navy).
+- Published as `8ca9812`; [Pages workflow 43919941171](https://github.com/krissutantio/PictureToDots/actions/runs/43919941171) succeeded. Live Chromium verified the matching build asset, 60 physical codes, 60 unique symbols, adaptive default and no page errors. Older saved projects retain prior settings.
+
+## Portrait simplification prototype (2026-11-16)
+
+- Added **Portrait Simplification** to Conversion priority. It smooths minor tonal variation and reserves small dots for observed local contrast near facial features; it does not draw from landmark shapes. The stored `portraitV1` evidence is optional and validated. Existing projects, dot settings and Line Art retain their previous behavior.
+- Matched private proofs at 5 × 7 in, 60 sampling columns, 12/60 colors and 2–3.2 mm dots: closer crops retain more eye/mouth detail; glasses frames still partially merge with eyes. Centered Photo Booth proof clips one detected eye. User visual acceptance and physical ink proofs are pending.
+- **34 unit tests, production build, all 18 Chromium scenarios passed.** Rendered closest 12-color PDFs; no symbol clipping/overlap in reviewed output. Private proof artifacts are outside the repo; no outbound HTTP requests in the private run. Work is local; no push or deploy.
 
 ## Remaining limits / next work
+
+- Reviewed the user's ten UI design suggestions in [UI_DESIGN_NOTES](UI_DESIGN_NOTES.md). Useful candidates: nested radii, alpha panel borders and matched icon weights; dynamic viewport sizing already exists. Dark mode/animated swaps are deferred; OKLCH and blending must not alter marker colors or artwork. UI polish remains documentation only.
 
 - Real profile, glasses, lighting, group, flower and landscape photos remain unverified. The multi-face composite is not a real group photo. Full-portrait detail at 24 columns/four colors remains weak; diagnostics warn about small eye separation. Do not claim likeness.
 - Safari/Firefox and physical marker/paper proofs remain manual. Chart-derived RGB estimates need calibration. The GitHub target is configured; check the latest main-branch deployment in Actions.

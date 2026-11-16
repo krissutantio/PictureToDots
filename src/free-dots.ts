@@ -69,6 +69,7 @@ export function freeDotMarks(
         );
     }
   const reference = s.dotLayoutVersion === 3,
+    portrait = reference ? a.dotField?.portraitV1 : undefined,
     spacing = reference ? 1.35 : 1,
     gap = reference ? 1.2 : 0.6;
   const labels = reference
@@ -97,18 +98,25 @@ export function freeDotMarks(
       importance * 0.9,
       Math.max(0, 1 - available / (max * 1.5)),
     );
-    return { i, u, v, fieldCell, cell, detail };
+    const evidence = portrait?.[fieldCell] ?? 0;
+    return { i, u, v, fieldCell, cell, detail, evidence };
   })
     .filter((c) => field.assignments[c.fieldCell] >= 0)
     .sort(
       (a, b) =>
-        (reference ? a.detail - b.detail : b.detail - a.detail) || a.i - b.i,
+        (a.evidence > 0.22 || b.evidence > 0.22
+          ? b.evidence - a.evidence
+          : 0) ||
+        (reference ? a.detail - b.detail : b.detail - a.detail) ||
+        a.i - b.i,
     );
   for (const c of candidates) {
     const color = field.assignments[c.fieldCell];
-    const diameter =
-      min +
-      (max - min) * (1 - c.detail) ** 1.4 * (0.88 + 0.12 * random(c.i + 997));
+    const reserved = c.evidence > 0.22;
+    const diameter = reserved
+      ? min
+      : min +
+        (max - min) * (1 - c.detail) ** 1.4 * (0.88 + 0.12 * random(c.i + 997));
     const font = Math.min(9, diameter * (labels > 1 ? 0.71 : 0.85));
     const footprint = reference
       ? Math.max(diameter, labelFootprint(a.palette, font))
@@ -137,7 +145,12 @@ export function freeDotMarks(
       ry = (diameter / 2 / height) * h,
       fx = c.u * w,
       fy = c.v * h;
-    let crossing = false;
+    let crossing = false,
+      covered = 0,
+      supported = 0;
+    // For a measured dark feature only, accept a minimum-size dot with its
+    // center on the feature and enough same-ink support under its footprint.
+    // Keep paper cutouts and all normal v1–v3 boundary checks intact.
     for (
       let yy = Math.max(0, Math.floor(fy - ry));
       yy <= Math.min(h - 1, Math.floor(fy + ry)) && !crossing;
@@ -148,7 +161,17 @@ export function freeDotMarks(
         xx <= Math.min(w - 1, Math.floor(fx + rx));
         xx++
       ) {
-        if (field.assignments[yy * w + xx] === color) continue;
+        const ink = field.assignments[yy * w + xx];
+        if (reserved) {
+          let weight = 0;
+          for (const oy of [0.25, 0.75])
+            for (const ox of [0.25, 0.75])
+              if (((xx + ox - fx) / rx) ** 2 + ((yy + oy - fy) / ry) ** 2 < 1)
+                weight++;
+          covered += weight;
+          if (ink === color) supported += weight;
+        }
+        if (ink === color || (reserved && ink >= 0)) continue;
         const dx = Math.max(xx - fx, 0, fx - xx - 1) / rx,
           dy = Math.max(yy - fy, 0, fy - yy - 1) / ry;
         if (dx * dx + dy * dy < 1) {
@@ -156,7 +179,8 @@ export function freeDotMarks(
           break;
         }
       }
-    if (crossing) continue;
+    if (crossing || (reserved && (!covered || supported / covered < 0.34)))
+      continue;
     const mark = {
       id: a.assignments.length + c.i,
       cell: c.cell,

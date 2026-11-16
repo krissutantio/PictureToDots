@@ -12,6 +12,7 @@ import { processPixels } from "../src/processing";
 import { defaults, type Project } from "../src/types";
 import { validateProject } from "../src/storage";
 import palette from "../src/palettes.json";
+import type { SubjectAnalysis } from "../src/subject-types";
 
 const frame = { cx: 0.5, cy: 0.5, zoom: 1, allowOutside: true };
 const project = (): Project => ({
@@ -161,4 +162,62 @@ describe("version-1 backup compatibility", () => {
       expect(validateProject({ ...project(), ...bad })).toBe(false);
     }
   });
+});
+
+it("reserves only measured feature contrast and falls back when no face is detected", () => {
+  const width = 64;
+  const flat = new Uint8ClampedArray(width * width * 4);
+  for (let i = 0; i < flat.length; i += 4) flat.set([180, 140, 120, 255], i);
+  const left = { x: 0.35, y: 0.4 },
+    right = { x: 0.65, y: 0.4 };
+  const box = { x: 0.2, y: 0.15, width: 0.6, height: 0.7 };
+  const subject: SubjectAnalysis = {
+    width: 1,
+    height: 1,
+    saliency: [0.5],
+    edges: [0],
+    box,
+    kind: "Portrait",
+    method: "face landmarks",
+    confidence: 0.6,
+    message: "",
+    modelStatus: "ready",
+    faces: [
+      {
+        box,
+        points: [],
+        groups: {
+          eyes: [[left], [right]],
+          brows: [[left], [right]],
+          nose: [{ x: 0.5, y: 0.5 }],
+          mouth: [{ x: 0.5, y: 0.65 }],
+          oval: [{ x: 0.25, y: 0.6 }],
+        },
+      },
+    ],
+  };
+  const s = { ...defaults, priority: "Portrait Simplification" as const };
+  const rect = { x: 0, y: 0, width: 1, height: 1 };
+  const prepare = (data: Uint8ClampedArray, found = true) =>
+    featurePrepare(
+      data,
+      width,
+      width,
+      16,
+      16,
+      s,
+      found ? subject : undefined,
+      [],
+      rect,
+    );
+  expect(prepare(flat).portraitEvidence?.some((v) => v > 0)).toBe(false);
+  expect(prepare(flat, false).portraitEvidence).toBeUndefined();
+  const withEye = flat.slice();
+  const center = 25 * width + 22;
+  for (const i of [center - 1, center, center + 1])
+    withEye.set([25, 20, 18, 255], i * 4);
+  const prepared = prepare(withEye);
+  expect(prepared.portraitEvidence?.[center]).toBeGreaterThan(0.22);
+  expect(prepared.portraitEvidence?.[25 * width + 42]).toBe(0);
+  expect(prepared.detailData[center * 4]).toBe(25);
 });

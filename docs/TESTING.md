@@ -59,6 +59,22 @@ The E2E configuration starts/reuses Vite at port 5173. Production tests serve `d
 - Poppler review: flower and real-photo portrait template/colored PDFs plus all four 60-color key pages. Symbols, physical numbers and margins are readable in rendered output; no clipping/mark overlap observed. This verifies geometry and rendering, not actual printed symbol recognition or photographic likeness.
 - Illustrated contour/hatching remains backlog, not a verified capability. See [LINE_ART_REFERENCE](LINE_ART_REFERENCE.md). Existing segmented line-art and notebook exports still pass the full workflow checks.
 
+## Portrait simplification verification (2026-11-16)
+
+- `npm test`: **34 pass**. New coverage checks that flat landmark neighborhoods
+  produce no fabricated contrast, missing landmarks fall back, measured thin
+  detail reserves minimum-sized non-overlapping dots, v2 remains unchanged,
+  and the optional evidence map validates through a JSON round trip.
+- `npm run build` and `npm run test:e2e`: **production build and all 18 Chromium
+  scenarios pass**. The added portrait workflow verifies fixed grid/color
+  budgets, real local inference, comparison PDF, original bytes, no external
+  requests and an IndexedDB reopen with identical dot IDs.
+- Matched private 12- and 60-color proofs for both user photos, centered and closer,
+  plus an isolated ordinary-packing comparison. Rendered the closer 12-color
+  PDF templates with Poppler. See [PORTRAIT_SIMPLIFICATION](PORTRAIT_SIMPLIFICATION.md)
+  for mark counts, observations and caveats. Visual improvement is partial; the
+  proofs are private and user acceptance and actual paper testing remain pending.
+
 ## Remaining acceptance work
 
 - Profile, glasses, varied lighting, actual groups, flowers and landscapes need broader real-photo checks. The multi-face composite is not a real group photo.

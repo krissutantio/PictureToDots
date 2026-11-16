@@ -1,3 +1,4 @@
+import { portraitPriority } from "./portrait";
 import React, { useState, useEffect, useRef } from "react";
 import { createRoot } from "react-dom/client";
 import {
@@ -69,7 +70,7 @@ import { ImportanceEditor } from "./ImportanceEditor";
 import { StrategyComparison } from "./StrategyComparison";
 import { prepareInput, originalData } from "./input";
 import { analyzeSource } from "./analysis";
-import { priorities, portraitPreset } from "./features";
+import { comparisonPriorities, priorities, portraitPreset } from "./features";
 import { rotatePoint } from "./crop";
 import type { SubjectKind } from "./subject-types";
 import type { Marker } from "./types";
@@ -219,6 +220,7 @@ function App() {
       : s.lineLabels
         ? "5.0 pt"
         : "Off";
+  const eyeSeparationCells = art?.diagnostics?.metrics.eyeSeparationCells;
   const warnings = art
     ? [
         ...printWarnings(s, project.art!),
@@ -230,6 +232,16 @@ function App() {
             )
           : []),
         ...(art.diagnostics?.metrics.warnings || []),
+        ...(s.priority === portraitPriority &&
+        s.mode === "dots" &&
+        eyeSeparationCells !== undefined &&
+        (eyeSeparationCells * geometry(s, art.width, art.height).pitch * 25.4) /
+          72 <
+          4 * s.minDot
+          ? [
+              "Eye spacing is small at this print size. Review the proof or try a closer crop or larger page.",
+            ]
+          : []),
       ]
     : [];
   const settings = (patch: Partial<Settings>) => {
@@ -1227,8 +1239,13 @@ function App() {
                   Portrait optimization preset
                 </button>
                 <p className="hint">
-                  Feature-aware choices prioritize observed structure. Your
-                  grid, difficulty and marker limit stay unchanged.
+                  {s.priority === portraitPriority
+                    ? s.mode !== "dots"
+                      ? "Portrait simplification applies to Dot Art. Line Art uses existing feature-aware processing."
+                      : s.dotLayout !== "adaptive" || s.dotLayoutVersion !== 3
+                        ? "Portrait tones are simplified. Choose reference-style spacing to reserve dots for facial detail."
+                        : "Smooths small tonal changes and reserves dots for observed facial detail. Review the proof at print size."
+                    : "Feature-aware choices prioritize observed structure. Your grid, difficulty and marker limit stay unchanged."}
                 </p>
                 <label className="field">
                   Difficulty
@@ -1690,7 +1707,7 @@ function App() {
                     action(async () =>
                       download(
                         await artworkPDF(
-                          priorities.slice(0, 3).map((priority) => ({
+                          comparisonPriorities(s).map((priority) => ({
                             ...project,
                             title: project.title + " - " + priority,
                             settings: { ...s, priority },

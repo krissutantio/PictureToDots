@@ -47,3 +47,11 @@ high-contrast navigation. Home Screen icons and manifest theme colors use the
 same navy. Theme changes apply to application chrome only: physical palette
 swatches, source photos, artwork colors and printable gray letters retain their
 content colors. Warning/subject accents remain distinct from the navigation.
+
+## Future visual polish
+
+[UI_DESIGN_NOTES](UI_DESIGN_NOTES.md) assesses the user's ten design suggestions.
+Nested corner radii, subtle panel borders and matched icon weight are useful
+polish candidates; dynamic viewport sizing is already part of this workspace.
+Other effects are optional, deferred or limited to decoration. This is a design
+review only; no new theme or animation behavior has been implemented.

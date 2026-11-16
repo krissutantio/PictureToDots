@@ -304,3 +304,57 @@ describe("reference spacing and stable marker metadata", () => {
     );
   });
 });
+
+it("fits measured thin detail with minimum-size dots only in portrait packing", () => {
+  const p = project(),
+    a = p.art!,
+    w = 96,
+    h = 112;
+  p.settings = { ...p.settings, priority: "Portrait Simplification" };
+  const s = p.settings,
+    g = geometry(s, a.width, a.height);
+  // A 1.3 mm observed stroke is narrower than the 1.5 mm physical dot limit.
+  const stroke = (i: number) => i % w === 45;
+  a.dotField = {
+    width: w,
+    height: h,
+    assignments: Array.from({ length: w * h }, (_, i) => (stroke(i) ? 0 : 59)),
+  };
+  const ordinary = dotMarks(a, s, g);
+  expect(ordinary.some((m) => m.color === 0)).toBe(false);
+  const withEvidence = {
+    ...a,
+    dotField: {
+      ...a.dotField,
+      portraitV1: Array.from({ length: w * h }, (_, i) =>
+        stroke(i) ? 0.8 : 0,
+      ),
+    },
+  };
+  const marks = dotMarks(withEvidence, s, g);
+  const protectedDots = marks.filter((m) => m.color === 0);
+  expect(protectedDots.length).toBeGreaterThan(4);
+  for (const m of protectedDots) {
+    expect((m.diameter * 25.4) / 72).toBeCloseTo(s.minDot);
+    expect(Math.floor(((m.x - g.left) / (a.width * g.pitch)) * w)).toBe(45);
+  }
+  for (const [i, m] of marks.entries())
+    for (const n of marks.slice(i + 1))
+      expect(Math.hypot(m.x - n.x, m.y - n.y) + 1e-8).toBeGreaterThanOrEqual(
+        (1.35 * (m.footprint + n.footprint)) / 2 + 1.2,
+      );
+  expect(dotMarks(withEvidence, { ...s, dotLayoutVersion: 2 }, g)).toEqual(
+    dotMarks(a, { ...s, dotLayoutVersion: 2 }, g),
+  );
+  p.art = withEvidence;
+  expect(validateProject(JSON.parse(JSON.stringify(p)))).toBe(true);
+  expect(
+    validateProject({
+      ...p,
+      art: {
+        ...withEvidence,
+        dotField: { ...withEvidence.dotField, portraitV1: [1.5] },
+      },
+    }),
+  ).toBe(false);
+});

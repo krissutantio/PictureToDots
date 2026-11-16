@@ -54,6 +54,7 @@ export type FeatureMetrics = {
   protectedCells: number;
   regions: number;
   warnings: string[];
+  eyeSeparationCells?: number;
   faceSamples: number;
 };
 export type FeatureData = {

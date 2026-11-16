@@ -1,5 +1,9 @@
 import { processPixels } from "./processing";
-import { featurePrepare, featureMetrics, priorities } from "./features";
+import {
+  featurePrepare,
+  featureMetrics,
+  comparisonPriorities,
+} from "./features";
 import type { Settings, Artwork } from "./types";
 self.onmessage = ({ data: job }) => {
   try {
@@ -8,6 +12,7 @@ self.onmessage = ({ data: job }) => {
       settings: Settings,
       data: Uint8ClampedArray,
       importance?: Float32Array,
+      portraitEvidence?: Float32Array,
     ) => {
       if (art.mode !== "dots" || !job.inputWidth) return art;
       const detail = processPixels(
@@ -29,6 +34,7 @@ self.onmessage = ({ data: job }) => {
         height: job.inputHeight,
         assignments: detail.assignments,
         importance: importance ? Array.from(importance) : undefined,
+        portraitV1: portraitEvidence ? Array.from(portraitEvidence) : undefined,
       };
       if (settings.background !== "keep")
         art.dotField.assignments = detail.assignments.map(
@@ -99,13 +105,14 @@ self.onmessage = ({ data: job }) => {
         settings,
         prepared.detailData,
         prepared.detailImportance,
+        prepared.portraitEvidence,
       );
     };
     const art = run(job.settings);
     let comparisons: Record<string, Artwork> | undefined;
     if (job.compare) {
       comparisons = {};
-      for (const priority of priorities.slice(0, 3))
+      for (const priority of comparisonPriorities(job.settings))
         comparisons[priority] =
           priority === job.settings.priority
             ? art

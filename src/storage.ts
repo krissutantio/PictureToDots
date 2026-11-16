@@ -136,10 +136,13 @@ function validateProjectData(p: unknown): p is Project {
         !Array.isArray(f.assignments) ||
         f.assignments.length !== f.width * f.height ||
         !f.assignments.every(validColor) ||
-        (f.importance !== undefined &&
-          (!Array.isArray(f.importance) ||
-            f.importance.length !== f.assignments.length ||
-            !f.importance.every((v) => Number.isFinite(v) && v >= 0 && v <= 1)))
+        [f.importance, f.portraitV1].some(
+          (map) =>
+            map !== undefined &&
+            (!Array.isArray(map) ||
+              map.length !== f.assignments.length ||
+              !map.every((v) => Number.isFinite(v) && v >= 0 && v <= 1)),
+        )
       )
         return false;
     }
@@ -154,6 +157,9 @@ function validateProjectData(p: unknown): p is Project {
             map.every((v) => Number.isFinite(v) && v >= 0 && v <= 1),
         ) ||
         !d.metrics ||
+        (d.metrics.eyeSeparationCells !== undefined &&
+          (!Number.isFinite(d.metrics.eyeSeparationCells) ||
+            d.metrics.eyeSeparationCells < 0)) ||
         !Array.isArray(d.metrics.warnings) ||
         !d.metrics.warnings.every((w) => typeof w === "string") ||
         ![
@@ -224,6 +230,7 @@ function validateProjectData(p: unknown): p is Project {
       "Balanced",
       "Feature Preservation",
       "Maximum Recognizability",
+      "Portrait Simplification",
     ].includes(x.settings.priority)
   )
     return false;

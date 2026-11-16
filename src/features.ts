@@ -1,3 +1,4 @@
+import { portraitPriority, simplifyPortrait } from "./portrait";
 import { clamp, cropPoint, unrotatePoint } from "./crop";
 import type { Settings, Artwork } from "./types";
 import type {
@@ -13,7 +14,12 @@ export const priorities = [
   "Balanced",
   "Feature Preservation",
   "Maximum Recognizability",
+  portraitPriority,
 ] as const;
+export const comparisonPriorities = (s: Settings) =>
+  s.mode === "dots" && s.priority === portraitPriority
+    ? (["Color Accuracy", "Maximum Recognizability", portraitPriority] as const)
+    : priorities.slice(0, 3);
 export function priorityStrength(s: Settings) {
   return (
     (({
@@ -21,6 +27,7 @@ export function priorityStrength(s: Settings) {
       Balanced: 0.45,
       "Feature Preservation": 0.8,
       "Maximum Recognizability": 1,
+      [portraitPriority]: 1,
     }[s.priority] ?? 0) *
       s.featureStrength) /
     100
@@ -268,35 +275,15 @@ export function resizeAverage(
     }
   return out;
 }
-export function featurePrepare(
+function prepareTones(
   data: Uint8ClampedArray,
   w: number,
   h: number,
-  tw: number,
-  th: number,
   s: Settings,
-  analysis: SubjectAnalysis | undefined,
-  strokes: ImportanceStroke[],
-  rect: Box,
-): {
-  data: Uint8ClampedArray;
-  features: FeatureData;
-  detailData: Uint8ClampedArray;
-  detailImportance: Float32Array;
-} {
-  const { edges } = edgeField(data, w, h),
-    map = importanceMap(
-      w,
-      h,
-      tw,
-      s,
-      analysis,
-      strokes,
-      rect,
-      s.rotation,
-      edges,
-    ),
-    strength = map.strength;
+  map: FeatureData,
+  edges: Float32Array,
+) {
+  const strength = map.strength;
   let current = new Float32Array(data),
     next = new Float32Array(data.length);
   const passes = Math.max(1, Math.round(s.textureRemoval / 25));
@@ -376,6 +363,46 @@ export function featurePrepare(
         );
       adjusted[base + 3] = 255;
     }
+  return adjusted;
+}
+export function featurePrepare(
+  data: Uint8ClampedArray,
+  w: number,
+  h: number,
+  tw: number,
+  th: number,
+  s: Settings,
+  analysis: SubjectAnalysis | undefined,
+  strokes: ImportanceStroke[],
+  rect: Box,
+): {
+  data: Uint8ClampedArray;
+  features: FeatureData;
+  detailData: Uint8ClampedArray;
+  detailImportance: Float32Array;
+  portraitEvidence?: Float32Array;
+} {
+  const { edges } = edgeField(data, w, h),
+    map = importanceMap(
+      w,
+      h,
+      tw,
+      s,
+      analysis,
+      strokes,
+      rect,
+      s.rotation,
+      edges,
+    ),
+    strength = map.strength;
+  const portrait =
+    s.priority === portraitPriority &&
+    s.mode === "dots" &&
+    analysis?.faces.length &&
+    strength > 0
+      ? simplifyPortrait(data, w, h, tw, s, analysis.faces, rect, map)
+      : undefined;
+  const adjusted = portrait?.data ?? prepareTones(data, w, h, s, map, edges);
   const out = resizeAverage(adjusted, w, h, tw, th),
     importance = new Float32Array(tw * th),
     targetEdges = new Float32Array(tw * th),
@@ -436,6 +463,7 @@ export function featurePrepare(
     data: out,
     detailData: adjusted,
     detailImportance: map.importance,
+    portraitEvidence: portrait?.evidence,
     features: {
       importance,
       edges: targetEdges,
@@ -489,6 +517,7 @@ export function featureMetrics(
     }
   }
   const warnings: string[] = [];
+  let eyeSeparationCells: number | undefined;
   for (const face of analysis?.faces || []) {
     const center = (points: Point[]) => ({
       x: points.reduce((n, p) => n + p.x, 0) / points.length,
@@ -501,6 +530,12 @@ export function featureMetrics(
       (eyes[0].x - eyes[1].x) * w,
       (eyes[0].y - eyes[1].y) * h,
     );
+    if (
+      s.priority === portraitPriority &&
+      art.mode === "dots" &&
+      eyes.every((p) => p.x >= 0 && p.x <= 1 && p.y >= 0 && p.y <= 1)
+    )
+      eyeSeparationCells = Math.min(eyeSeparationCells ?? Infinity, separation);
     if (separation < 3)
       warnings.push(
         "Detected eyes occupy fewer than three grid cells of separation. Crop closer, increase resolution, or choose a larger page.",
@@ -510,7 +545,10 @@ export function featureMetrics(
         "A detected eye is outside the current crop. Review framing.",
       );
   }
-  if (!analysis?.faces.length && s.subjectKind === "Portrait")
+  if (
+    !analysis?.faces.length &&
+    (s.subjectKind === "Portrait" || s.priority === portraitPriority)
+  )
     warnings.push(
       "No reliable face landmarks detected. Generic structure and your importance strokes are used; facial likeness is not validated.",
     );
@@ -533,6 +571,7 @@ export function featureMetrics(
     protectedCells: features.protected.reduce((n, v) => n + v, 0),
     regions: art.mode === "lines" ? art.regions.length : art.assignments.length,
     warnings: [...new Set(warnings)],
+    eyeSeparationCells,
     faceSamples: analysis?.faces.length || 0,
   };
 }

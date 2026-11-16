@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { Project, Artwork } from "./types";
 import { artworkSVG } from "./render";
-import { priorities } from "./features";
+import { comparisonPriorities } from "./features";
 export function StrategyComparison({
   project,
   comparisons,
@@ -14,6 +14,7 @@ export function StrategyComparison({
   onProof: () => void;
 }) {
   const [printSize, setPrintSize] = useState(false);
+  const strategies = comparisonPriorities(project.settings);
   return (
     <section className="strategy-comparison">
       <div className="strategy-heading">
@@ -33,7 +34,9 @@ export function StrategyComparison({
           Show print-layout size
         </label>
         <button
-          disabled={busy || Object.keys(comparisons).length < 3}
+          disabled={
+            busy || strategies.some((priority) => !comparisons[priority])
+          }
           onClick={onProof}
         >
           Download comparison proof PDF
@@ -55,7 +58,7 @@ export function StrategyComparison({
           />
           <p>Original source; the artwork uses your accepted crop.</p>
         </article>
-        {priorities.slice(0, 3).map((priority) => {
+        {strategies.map((priority) => {
           const art = comparisons[priority];
           return (
             <article

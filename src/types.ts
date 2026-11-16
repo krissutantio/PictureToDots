@@ -59,7 +59,8 @@ export type Settings = {
     | "Color Accuracy"
     | "Balanced"
     | "Feature Preservation"
-    | "Maximum Recognizability";
+    | "Maximum Recognizability"
+    | "Portrait Simplification";
   featureStrength: number;
   backgroundSimplification: number;
   edgeEmphasis: number;
@@ -90,6 +91,7 @@ export type Artwork = {
     height: number;
     assignments: number[];
     importance?: number[];
+    portraitV1?: number[];
   };
   diagnostics?: {
     importance: number[];

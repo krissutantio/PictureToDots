@@ -179,3 +179,5 @@ Photos and projects are processed locally. Model/SDK/WASM files are bundled unde
 ## Future illustrated line art
 
 The supplied dog/pickup/flowers/pumpkins illustration is documented as a future contour-and-hatching mode in [LINE_ART_REFERENCE](docs/LINE_ART_REFERENCE.md) and [ROADMAP](docs/ROADMAP.md). The present segmented line-art algorithm remains in place.
+
+In the local portrait prototype, choose **Style & detail → Conversion priority → Portrait Simplification**. It smooths minor tonal variation and reserves dots for observed facial contrast with reference spacing. **Strategies** compares it against Color Accuracy and Maximum Recognizability at the same settings. See [PORTRAIT_SIMPLIFICATION](docs/PORTRAIT_SIMPLIFICATION.md) for matched proof results and remaining limitations; small faces and glasses can still lose detail.
