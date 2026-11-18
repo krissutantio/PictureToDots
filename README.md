@@ -181,3 +181,9 @@ Photos and projects are processed locally. Model/SDK/WASM files are bundled unde
 The supplied dog/pickup/flowers/pumpkins illustration is documented as a future contour-and-hatching mode in [LINE_ART_REFERENCE](docs/LINE_ART_REFERENCE.md) and [ROADMAP](docs/ROADMAP.md). The present segmented line-art algorithm remains in place.
 
 In the local portrait prototype, choose **Style & detail → Conversion priority → Portrait Simplification**. It smooths minor tonal variation and preserves observed eye, glasses, nose and mouth contrast with reference spacing. Updated placement keeps nearby skin tones coherent, follows measured feature strokes and uses tighter spacing between supported detail dots. Older portrait projects offer **Review updated portrait detail → Use updated portrait**; Undo restores the previous artwork and edits. **Strategies** compares it against Color Accuracy and Maximum Recognizability at the same settings. See [PORTRAIT_SIMPLIFICATION](docs/PORTRAIT_SIMPLIFICATION.md) for matched proof results and remaining limitations; small faces and glasses can still lose detail.
+
+**Subject Silhouette** is an opt-in conversion priority for quieter pale backgrounds,
+simplified detected face tones and less saturated white/gray substitutions. Enable
+**Leave white paper uncolored** for paper backgrounds. It preserves your grid,
+color budget and physical dot sizes. White-on-white clothing can still lose its
+outline; review the Strategies proof. [Behavior and limits](docs/SUBJECT_SIMPLIFICATION.md).

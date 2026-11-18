@@ -3,6 +3,7 @@ import { letter } from "./types";
 import type { FeatureData } from "./subject-types";
 import type { Artwork, Marker, Region, Settings } from "./types";
 import { distance, lab, rgb } from "./color";
+import { subjectSilhouettePriority } from "./subject-simplify";
 export { distance, lab, rgb } from "./color";
 // Greedy facility-location selection: each new ink must improve total perceptual error.
 export function selectPalette(
@@ -10,6 +11,7 @@ export function selectPalette(
   markers: Marker[],
   count: number,
   weights?: number[],
+  colorError = distance,
 ): Marker[] {
   const allowed = markers.filter(
     (m) => m.enabled && /^#[\da-f]{6}$/i.test(m.hex),
@@ -29,7 +31,7 @@ export function selectPalette(
       let total = 0;
       for (let i = 0; i < samples.length; i++)
         total +=
-          Math.min(errors[i], distance(samples[i], colors[c])) *
+          Math.min(errors[i], colorError(samples[i], colors[c])) *
           (weights?.[i] ?? 1);
       if (total < score) {
         score = total;
@@ -48,12 +50,32 @@ export function selectPalette(
       break;
     selected.push(best);
     samples.forEach(
-      (s, i) => (errors[i] = Math.min(errors[i], distance(s, colors[best]))),
+      (s, i) => (errors[i] = Math.min(errors[i], colorError(s, colors[best]))),
     );
   }
   return selected
     .map((i) => allowed[i])
     .sort((a, b) => lab(rgb(a.hex))[0] - lab(rgb(b.hex))[0]);
+}
+
+function silhouetteInkError(source: number[], ink: number[]) {
+  const chromaSquared = source[1] ** 2 + source[2] ** 2;
+  const error = distance(source, ink);
+  // Prefer a physical neutral for gray folds and shadows when the palette has one.
+  const neutralWeight = Math.max(0, 1 - chromaSquared / 144);
+  const chromaError = (source[1] - ink[1]) ** 2 + (source[2] - ink[2]) ** 2;
+  return error + 8 * neutralWeight * chromaError;
+}
+
+function silhouettePaper(color: number[], foreground: number) {
+  const [lightness, a, b] = color;
+  // The broader rule needs confident background evidence. Keep darker measured
+  // subject tones available as ink, including contrast in white garments.
+  const background = foreground <= 0.25;
+  return (
+    lightness >= (background ? 74 : 83) &&
+    a ** 2 + b ** 2 <= (background ? 15 : 9) ** 2
+  );
 }
 function neighbors(i: number, w: number, h: number) {
   const n: number[] = [];
@@ -160,6 +182,7 @@ export function processPixels(
   s: Settings,
   markers: Marker[],
   features?: FeatureData,
+  subjectForeground = features?.subjectForeground,
 ): Artwork {
   let pixels: number[][] = [];
   for (let i = 0; i < data.length; i += 4) {
@@ -192,37 +215,51 @@ export function processPixels(
     });
     pixels = next;
   }
-  const stride = Math.max(1, Math.floor(pixels.length / 1800));
-  const sampleIndices = pixels
-    .map((_, i) => i)
-    .filter((i) => i % stride === 0 || features?.protected[i]);
-  const sample = sampleIndices.map((i) => lab(pixels[i]));
+  const silhouette =
+    s.mode === "dots" && s.priority === subjectSilhouettePriority;
+  const colorError = silhouette ? silhouetteInkError : distance;
+  const pixelLabs = silhouette ? pixels.map(lab) : undefined;
+  const paper = s.white
+    ? pixelLabs?.map(
+        (color, i) =>
+          pixels[i].every((v) => v > 244) ||
+          silhouettePaper(color, subjectForeground?.[i] ?? 1),
+      )
+    : undefined;
+  const indices = pixels.map((_, i) => i);
+  const inkIndices = paper ? indices.filter((i) => !paper[i]) : indices;
+  const stride = Math.max(1, Math.floor(inkIndices.length / 1800));
+  const sampleIndices = inkIndices.filter(
+    (i, index) => index % stride === 0 || features?.protected[i],
+  );
+  const sample = sampleIndices.map((i) => pixelLabs?.[i] ?? lab(pixels[i]));
   const weights = features
     ? sampleIndices.map(
         (i) => 1 + features.importance[i] ** 2 * features.strength * 7,
       )
     : undefined;
-  const palette = selectPalette(sample, markers, s.colors, weights),
+  const palette = selectPalette(sample, markers, s.colors, weights, colorError),
     labs = palette.map((m) => lab(rgb(m.hex)));
   const a: number[] = [],
     working = pixels.map((c) => [...c]);
   for (let i = 0; i < working.length; i++) {
     const c = working[i];
-    if (s.white && pixels[i].every((v) => v > 244)) {
+    if (paper ? paper[i] : s.white && pixels[i].every((v) => v > 244)) {
       a.push(-1);
       continue;
     }
-    const l = lab(c);
+    const l = s.dither ? lab(c) : (pixelLabs?.[i] ?? lab(c));
     let index = 0,
       best = Infinity;
     labs.forEach((v, j) => {
-      let d = distance(l, v);
+      let d = colorError(l, v);
       if (features) {
         const imp = features.importance[i] * features.strength;
         d += (l[0] - v[0]) ** 2 * imp * 1.5;
         for (const neighbor of [i % w ? i - 1 : -1, i >= w ? i - w : -1])
           if (neighbor >= 0 && a[neighbor] >= 0 && features.edges[i] > 0.2) {
-            const sourceDelta = l[0] - lab(pixels[neighbor])[0];
+            const sourceDelta =
+              l[0] - (pixelLabs?.[neighbor] ?? lab(pixels[neighbor]))[0];
             if (Math.abs(sourceDelta) > 5) {
               const outputDelta = v[0] - labs[a[neighbor]][0];
               d += (outputDelta - sourceDelta) ** 2 * imp * 0.45;
@@ -254,14 +291,19 @@ export function processPixels(
   if (s.mode === "dots" && !s.dither && s.smoothing) {
     const original = [...a];
     for (let i = 0; i < a.length; i++) {
-      if (features?.protected[i] && features.strength > 0.3) continue;
+      if (paper?.[i] || (features?.protected[i] && features.strength > 0.3))
+        continue;
       const n = neighbors(i, w, h),
         counts = new Map<number, number>();
       n.forEach((j) =>
         counts.set(original[j], (counts.get(original[j]) || 0) + 1),
       );
       for (const [color, count] of counts)
-        if (count >= 3 && !n.some((j) => original[j] === original[i]))
+        if (
+          count >= 3 &&
+          !(paper && color < 0) &&
+          !n.some((j) => original[j] === original[i])
+        )
           a[i] = color;
     }
   }

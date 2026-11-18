@@ -60,7 +60,8 @@ export type Settings = {
     | "Balanced"
     | "Feature Preservation"
     | "Maximum Recognizability"
-    | "Portrait Simplification";
+    | "Portrait Simplification"
+    | "Subject Silhouette";
   featureStrength: number;
   backgroundSimplification: number;
   edgeEmphasis: number;

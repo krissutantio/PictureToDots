@@ -110,3 +110,10 @@ Chromium is automated. Actual marker/paper proofs and Safari/Firefox remain manu
 - New unit regression checks V2 exact geometry, supported V3 ridges, true circle/symbol spacing, paper cutouts, V3 validation/round trip and ID stability across physical size changes. Browser portrait flow upgrades both V1 and V2 through review, apply and Undo/Redo.
 - Fourteen local final proof cases (8 private, 4 astronaut, 2 cat) passed sampled-source equality, palette eligibility, diameter/bounds, geometry round trip and privacy checks. Cat output is identical. Separate ablations compare ridge/spacing, increased randomness, support/ranking and weaker evidence. These diagnostics are not likeness scores; detailed results and negative cases are in [PORTRAIT_DETAIL_EXPERIMENTS](PORTRAIT_DETAIL_EXPERIMENTS.md).
 - Independent stress checks cover 100-column large pages, imported 750×1056 evidence, 0.5 mm dots, legacy labels, paper cutouts, recoloring/backups and stable IDs across size changes. Two final private symbol PDFs rendered with Poppler show no overlapping/clipped symbols. Physical ink spread remains unverified.
+
+Subject Silhouette: `tests/subject-simplify.test.ts` checks connected neutral
+backgrounds, protected/enclosed pixels, the white toggle and rotated face tones.
+`tests/e2e/subject.spec.ts` covers comparison PDF, budget retention, original upload
+bytes and saved geometry. White/neutral matching regressions live in
+`tests/paper.test.ts`. Private screenshot-resolution comparisons stay outside
+tracked files; see [SUBJECT_SIMPLIFICATION](SUBJECT_SIMPLIFICATION.md).

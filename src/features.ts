@@ -1,3 +1,4 @@
+import { subjectSilhouettePriority, simplifySubject } from "./subject-simplify";
 import { portraitPriority, simplifyPortrait } from "./portrait";
 import { clamp, cropPoint, unrotatePoint } from "./crop";
 import type { Settings, Artwork } from "./types";
@@ -15,11 +16,22 @@ export const priorities = [
   "Feature Preservation",
   "Maximum Recognizability",
   portraitPriority,
+  subjectSilhouettePriority,
 ] as const;
 export const comparisonPriorities = (s: Settings) =>
-  s.mode === "dots" && s.priority === portraitPriority
-    ? (["Color Accuracy", "Maximum Recognizability", portraitPriority] as const)
-    : priorities.slice(0, 3);
+  s.priority === subjectSilhouettePriority
+    ? ([
+        "Color Accuracy",
+        "Feature Preservation",
+        subjectSilhouettePriority,
+      ] as const)
+    : s.mode === "dots" && s.priority === portraitPriority
+      ? ([
+          "Color Accuracy",
+          "Maximum Recognizability",
+          portraitPriority,
+        ] as const)
+      : priorities.slice(0, 3);
 export function priorityStrength(s: Settings) {
   return (
     (({
@@ -28,6 +40,7 @@ export function priorityStrength(s: Settings) {
       "Feature Preservation": 0.8,
       "Maximum Recognizability": 1,
       [portraitPriority]: 1,
+      [subjectSilhouettePriority]: 1,
     }[s.priority] ?? 0) *
       s.featureStrength) /
     100
@@ -393,6 +406,7 @@ export function featurePrepare(
   features: FeatureData;
   detailData: Uint8ClampedArray;
   detailImportance: Float32Array;
+  detailSubjectForeground?: Float32Array;
   portraitEvidence?: Float32Array;
   portraitToneArea?: Uint8Array;
 } {
@@ -416,7 +430,12 @@ export function featurePrepare(
     strength > 0
       ? simplifyPortrait(data, w, h, tw, th, s, analysis.faces, rect, map)
       : undefined;
-  const adjusted = portrait?.data ?? prepareTones(data, w, h, s, map, edges);
+  const subject =
+    s.priority === subjectSilhouettePriority
+      ? simplifySubject(data, w, h, s, analysis, rect, map)
+      : undefined;
+  const adjusted =
+    subject?.data ?? portrait?.data ?? prepareTones(data, w, h, s, map, edges);
   const out = resizeAverage(adjusted, w, h, tw, th),
     importance = new Float32Array(tw * th),
     targetEdges = new Float32Array(tw * th),
@@ -490,10 +509,25 @@ export function featurePrepare(
   return {
     data: out,
     detailData: adjusted,
+    detailSubjectForeground: subject?.foreground,
     detailImportance: map.importance,
     portraitEvidence: portrait?.evidence,
     portraitToneArea: portrait?.toneArea,
     features: {
+      subjectForeground: subject
+        ? Float32Array.from(
+            { length: tw * th },
+            (_, i) =>
+              subject.foreground[
+                Math.min(
+                  h - 1,
+                  Math.floor(((Math.floor(i / tw) + 0.5) * h) / th),
+                ) *
+                  w +
+                  Math.min(w - 1, Math.floor((((i % tw) + 0.5) * w) / tw))
+              ],
+          )
+        : undefined,
       importance,
       edges: targetEdges,
       protected: protectedMap,

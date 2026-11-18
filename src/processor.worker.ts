@@ -14,6 +14,7 @@ self.onmessage = ({ data: job }) => {
       importance?: Float32Array,
       portraitEvidence?: Float32Array,
       portraitToneArea?: Uint8Array,
+      subjectForeground?: Float32Array,
     ) => {
       if (art.mode !== "dots" || !job.inputWidth) return art;
       const detail = processPixels(
@@ -29,6 +30,8 @@ self.onmessage = ({ data: job }) => {
           colors: art.palette.length,
         },
         art.palette,
+        undefined,
+        subjectForeground,
       );
       art.dotField = {
         width: job.inputWidth,
@@ -114,6 +117,7 @@ self.onmessage = ({ data: job }) => {
         prepared.detailImportance,
         prepared.portraitEvidence,
         prepared.portraitToneArea,
+        prepared.detailSubjectForeground,
       );
     };
     const art = run(job.settings);

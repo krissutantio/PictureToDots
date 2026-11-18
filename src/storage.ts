@@ -357,6 +357,7 @@ function validateProjectData(p: unknown): p is Project {
       "Feature Preservation",
       "Maximum Recognizability",
       "Portrait Simplification",
+      "Subject Silhouette",
     ].includes(x.settings.priority)
   )
     return false;

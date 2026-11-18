@@ -2,7 +2,7 @@
 
 ## Current request
 
-Latest: continued the director/Sol feedback loop on captured portrait detail. Selected measured ridge candidates plus closer supported-detail spacing; rejected random-candidate inflation and weaker ridges after matched proofs. V1/V2 saved layouts remain explicit upgrades. See [PORTRAIT_DETAIL_EXPERIMENTS](PORTRAIT_DETAIL_EXPERIMENTS.md) and the 2026-11-17 results below.
+Latest: added explicit **Subject Silhouette** for the user's pale-background/white-clothing feedback. Quiet connected neutral walls, consolidate measured face tones, and favor neutral inks for gray shadows. White-on-white outlines remain imperfect. See [SUBJECT_SIMPLIFICATION](SUBJECT_SIMPLIFICATION.md).
 
 Build the browser-only photo-to-dot/line-art and notebook app from the user's initial brief. Reference photos informed staggered light-gray letters, top binding, dark/light keys and a reusable protective sheet. Follow-up adds feature-aware subject/face preservation, reviewable suggested crops, a usable crop editor at 1×, and concise handoff Markdown.
 
@@ -74,6 +74,14 @@ React/Vite studio; dot and segmented line artwork; CIELAB marker matching; manua
 ## Release verification (2026-11-17)
 
 - Release checks rerun: 37 unit tests passed, production build succeeded, and all 19 Chromium scenarios passed. Check [GitHub Actions](https://github.com/krissutantio/PictureToDots/actions) for the deployment result for this commit.
+
+## Subject / white-background follow-up (2026-11-17)
+
+- Added opt-in **Subject Silhouette** with matching Strategies/PDF comparisons, saved-priority validation and explanatory UI text. Existing priorities/layouts, original bytes, grid/color budgets and physical limits stay intact.
+- Directed Sol white-handling/review agent; the other two agents hit usage limits before implementation. Director implemented measured border/gradient background estimation, median detected-face tones and integration, then iterated from visual feedback. Dot paper matching excludes paper from palette selection and favors neutral physical inks; no synthetic marker added.
+- Visually reviewed matched private screenshot-resolution two-person and public astronaut SVG proofs. Shaded neutral walls clear; gradient protection retains more clothing shadows; stronger neutral matching improves their coherence. Current palette can map pale gray folds to dark Maui 45. White-on-white garment outlines and small faces remain limited; no semantic segmentation or guaranteed likeness claim. Private proofs: `/private/tmp/picturetodots-subject-review/`, copied to ignored `test-results/subject-review/`.
+- Checks: **43 unit tests, production build and all 20 Chromium scenarios pass**. Strengthened white-vs-gray regression also passed its six focused tests. Browser coverage includes new comparisons/PDF, original bytes and saved geometry, plus existing notebook deletion/offline/legacy-upgrade regressions. `git diff --check` passes. Generated example changes restored.
+- Updated README, architecture, testing and linked behavior/limitations documentation. Local changes only; no push/deploy. Physical ink, Safari/Firefox and user visual acceptance remain pending.
 
 ## Remaining limits / next work
 

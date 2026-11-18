@@ -77,3 +77,12 @@ configured sizes remain hard bounds. Ridge IDs use a fixed namespace independent
 of the candidate-attempt budget, so size changes do not reassign edits. V1/V2
 packing remains deterministic and unchanged. See
 [PORTRAIT_DETAIL_EXPERIMENTS](PORTRAIT_DETAIL_EXPERIMENTS.md).
+
+## Subject silhouette
+
+`subject-simplify.ts` supplies opt-in observed neutral-background removal and
+median face-tone preparation. Ephemeral foreground estimates flow through
+`featurePrepare` to both base-grid and high-resolution `processPixels` matching;
+only final artwork assignments are stored. Dot matching distinguishes paper from
+enabled ink and penalizes excess chroma for neutral source tones. Prior strategies
+retain their original matching. See [SUBJECT_SIMPLIFICATION](SUBJECT_SIMPLIFICATION.md).
