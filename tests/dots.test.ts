@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { createHash } from "node:crypto";
 import { markerLabel } from "../src/symbols";
 import { dotMarks } from "../src/dots";
 import {
@@ -332,6 +333,10 @@ it("fits measured thin detail with minimum-size dots only in portrait packing", 
     },
   };
   const marks = dotMarks(withEvidence, s, g);
+  // Original portraitV1 output for this saved field and these settings.
+  expect(createHash("sha256").update(JSON.stringify(marks)).digest("hex")).toBe(
+    "cde4378c2097877322f27f0f3a890fb61c10e3e2293197f04ed3eb2ebddc8b1f",
+  );
   const protectedDots = marks.filter((m) => m.color === 0);
   expect(protectedDots.length).toBeGreaterThan(4);
   for (const m of protectedDots) {
@@ -348,6 +353,9 @@ it("fits measured thin detail with minimum-size dots only in portrait packing", 
   );
   p.art = withEvidence;
   expect(validateProject(JSON.parse(JSON.stringify(p)))).toBe(true);
+  expect(dotMarks(JSON.parse(JSON.stringify(withEvidence)), s, g)).toEqual(
+    marks,
+  );
   expect(
     validateProject({
       ...p,
@@ -357,4 +365,185 @@ it("fits measured thin detail with minimum-size dots only in portrait packing", 
       },
     }),
   ).toBe(false);
+});
+
+it("fits portrait tones across nearby inks without crossing paper cutouts or changing physical mark limits", () => {
+  const p = project(),
+    a = p.art!,
+    w = 120,
+    h = 140,
+    s = { ...p.settings, minDot: 2 };
+  const g = geometry(s, a.width, a.height);
+  const height = a.height * g.pitch,
+    width = a.width * g.pitch;
+  const paperColumn = 55;
+  // The two reds have similar Lab values, but each stripe is narrower than a dot.
+  a.dotField = {
+    width: w,
+    height: h,
+    assignments: Array.from({ length: w * h }, (_, i) =>
+      i % w === paperColumn ? -1 : i % 2,
+    ),
+  };
+  const previous = dotMarks(a, s, g);
+  expect(previous).toHaveLength(0);
+  const portrait = {
+    ...a,
+    dotField: {
+      ...a.dotField,
+      portraitV2: {
+        evidence: Array<number>(w * h).fill(0),
+        toneArea: a.assignments.map(() => 1),
+      },
+    },
+  };
+  const marks = dotMarks(portrait, s, g);
+  expect(marks.length).toBeGreaterThan(200);
+  expect(dotMarks(portrait, { ...s, dotLayoutVersion: 2 }, g)).toEqual(
+    dotMarks(a, { ...s, dotLayoutVersion: 2 }, g),
+  );
+  for (const [i, mark] of marks.entries()) {
+    const centerX = ((mark.x - g.left) / width) * w;
+    const centerY = ((mark.y - g.top) / height) * h;
+    const radius = (mark.diameter / 2 / width) * w;
+    expect(
+      centerX + radius <= paperColumn || centerX - radius >= paperColumn + 1,
+    ).toBe(true);
+    expect((mark.diameter * 25.4) / 72).toBeGreaterThanOrEqual(s.minDot);
+    expect((mark.diameter * 25.4) / 72).toBeLessThanOrEqual(s.diameter);
+    expect(mark.color).toBe(
+      a.dotField.assignments[Math.floor(centerY) * w + Math.floor(centerX)],
+    );
+    for (const other of marks.slice(i + 1))
+      expect(
+        Math.hypot(mark.x - other.x, mark.y - other.y) + 1e-8,
+      ).toBeGreaterThanOrEqual(
+        (1.35 * (mark.footprint + other.footprint)) / 2 + 1.2,
+      );
+  }
+  const restored = JSON.parse(JSON.stringify({ ...p, art: portrait }));
+  expect(validateProject(restored)).toBe(true);
+  expect(dotMarks(restored.art, s, g)).toEqual(marks);
+  const field = portrait.dotField.portraitV2;
+  for (const invalid of [
+    { ...field, evidence: [0.1] },
+    { ...field, evidence: field.evidence.map(() => 1.1) },
+    { ...field, toneArea: [1] },
+    { ...field, toneArea: field.toneArea.map(() => 2) },
+  ])
+    expect(
+      validateProject({
+        ...restored,
+        art: {
+          ...portrait,
+          dotField: { ...portrait.dotField, portraitV2: invalid },
+        },
+      }),
+    ).toBe(false);
+});
+
+it("keeps solid facial tones when dots are smaller than the field sample spacing", () => {
+  const a = art();
+  const g = geometry(settings, a.width, a.height);
+  a.dotField = { width: 1, height: 1, assignments: [0] };
+  const ordinary = dotMarks(a, settings, g);
+  expect(ordinary.length).toBeGreaterThan(0);
+  const portrait = {
+    ...a,
+    dotField: {
+      ...a.dotField,
+      portraitV2: { evidence: [0], toneArea: a.assignments.map(() => 1) },
+    },
+  };
+  expect(dotMarks(portrait, settings, g)).toEqual(ordinary);
+});
+
+it("keeps supported portrait ridges closer without crossing paper or changing saved V2", () => {
+  const p = project();
+  const art = p.art!;
+  const s = { ...p.settings, minDot: 2 };
+  const g = geometry(s, art.width, art.height);
+  const w = 96;
+  const h = 112;
+  const width = art.width * g.pitch;
+  const ridge = 45;
+  const paper = 48;
+  const fine = Array.from({ length: w * h }, (_, i) => i % w === ridge);
+  const assignments = fine.map((detail, i) =>
+    detail ? 0 : i % w === paper ? -1 : 59,
+  );
+  const portrait = {
+    evidence: fine.map((detail, i) => (detail ? 0.7 + (i % 13) / 100 : 0)),
+    toneArea: art.assignments.map(() => 1),
+  };
+  const field = { width: w, height: h, assignments };
+  const v2 = { ...art, dotField: { ...field, portraitV2: portrait } };
+  const v3 = { ...art, dotField: { ...field, portraitV3: portrait } };
+  const previous = dotMarks(v2, s, g);
+  // Geometry from the saved V2 packer before V3 and the bucket optimization.
+  expect(
+    createHash("sha256").update(JSON.stringify(previous)).digest("hex"),
+  ).toBe("92465761c0a391bc7122320fb150c763552aa7d8fe1885218b110eb8a8fa4c79");
+  const marks = dotMarks(v3, s, g);
+  const detail = marks.filter((mark) => mark.color === 0);
+  expect(detail.length).toBeGreaterThan(
+    previous.filter((mark) => mark.color === 0).length,
+  );
+  const min = (s.minDot * 72) / 25.4;
+  for (const mark of detail) {
+    expect(mark.diameter).toBe(min);
+    expect(Math.floor(((mark.x - g.left) / width) * w)).toBe(ridge);
+  }
+  for (const [i, mark] of marks.entries()) {
+    const radius = mark.footprint / 2;
+    expect(mark.x - radius).toBeGreaterThanOrEqual(g.left);
+    expect(mark.x + radius).toBeLessThanOrEqual(g.left + width);
+    expect(mark.y - radius).toBeGreaterThanOrEqual(g.top);
+    expect(mark.y + radius).toBeLessThanOrEqual(g.top + art.height * g.pitch);
+    const paperLeft = g.left + (paper / w) * width;
+    const paperRight = paperLeft + width / w;
+    expect(
+      mark.x + mark.diameter / 2 <= paperLeft ||
+        mark.x - mark.diameter / 2 >= paperRight,
+    ).toBe(true);
+    for (const other of marks.slice(i + 1)) {
+      const radii = (mark.footprint + other.footprint) / 2;
+      const clearance =
+        mark.color === 0 && other.color === 0
+          ? radii + (0.45 * 72) / 25.4
+          : 1.35 * radii + 1.2;
+      expect(
+        Math.hypot(mark.x - other.x, mark.y - other.y) + 1e-8,
+      ).toBeGreaterThanOrEqual(clearance);
+    }
+  }
+  // Size edits retain IDs: a ridge must never alias a random candidate or
+  // another source location when the random-attempt budget changes.
+  const ridgeIds = marks.filter(
+    (mark) => mark.id >= art.assignments.length + 180000,
+  );
+  expect(ridgeIds.length).toBeGreaterThan(0);
+  const byId = new Map(marks.map((mark) => [mark.id, mark]));
+  const resized = dotMarks(v3, { ...s, minDot: 2.25 }, g);
+  for (const mark of resized) {
+    const original = byId.get(mark.id);
+    if (original)
+      expect([mark.x, mark.y, mark.cell]).toEqual([
+        original.x,
+        original.y,
+        original.cell,
+      ]);
+  }
+  const restored = JSON.parse(JSON.stringify({ ...p, settings: s, art: v3 }));
+  expect(validateProject(restored)).toBe(true);
+  expect(dotMarks(restored.art, s, g)).toEqual(marks);
+  for (const invalid of [
+    { ...portrait, evidence: [null] },
+    { ...portrait, evidence: portrait.evidence.map(() => -1) },
+    { ...portrait, toneArea: [1] },
+    { ...portrait, toneArea: portrait.toneArea.map(() => 2) },
+  ]) {
+    const invalidArt = { ...v3, dotField: { ...field, portraitV3: invalid } };
+    expect(validateProject({ ...restored, art: invalidArt })).toBe(false);
+  }
 });

@@ -12,7 +12,7 @@ import { processPixels } from "../src/processing";
 import { defaults, type Project } from "../src/types";
 import { validateProject } from "../src/storage";
 import palette from "../src/palettes.json";
-import type { SubjectAnalysis } from "../src/subject-types";
+import type { ImportanceStroke, SubjectAnalysis } from "../src/subject-types";
 
 const frame = { cx: 0.5, cy: 0.5, zoom: 1, allowOutside: true };
 const project = (): Project => ({
@@ -198,16 +198,21 @@ it("reserves only measured feature contrast and falls back when no face is detec
   };
   const s = { ...defaults, priority: "Portrait Simplification" as const };
   const rect = { x: 0, y: 0, width: 1, height: 1 };
-  const prepare = (data: Uint8ClampedArray, found = true) =>
+  const prepare = (
+    data: Uint8ClampedArray,
+    found = true,
+    strokes: ImportanceStroke[] = [],
+    rotation = 0,
+  ) =>
     featurePrepare(
       data,
       width,
       width,
       16,
       16,
-      s,
+      { ...s, rotation },
       found ? subject : undefined,
-      [],
+      strokes,
       rect,
     );
   expect(prepare(flat).portraitEvidence?.some((v) => v > 0)).toBe(false);
@@ -220,4 +225,30 @@ it("reserves only measured feature contrast and falls back when no face is detec
   expect(prepared.portraitEvidence?.[center]).toBeGreaterThan(0.22);
   expect(prepared.portraitEvidence?.[25 * width + 42]).toBe(0);
   expect(prepared.detailData[center * 4]).toBe(25);
+
+  const featureTones = flat.slice();
+  const sourceDetails = [
+    { x: 22, y: 25, tone: [228, 204, 187] }, // visible light gap near the lid
+    { x: 32, y: 32, tone: [159, 121, 104] }, // modest nose shadow
+    { x: 32, y: 41, tone: [202, 133, 120] }, // red lip detail, similar luminance
+  ];
+  for (const { x, y, tone } of sourceDetails)
+    for (const offset of [-1, 0, 1])
+      featureTones.set([...tone, 255], (y * width + x + offset) * 4);
+  const detail = prepare(featureTones);
+  for (const { x, y } of sourceDetails)
+    expect(detail.portraitEvidence?.[y * width + x]).toBeGreaterThan(0.22);
+  const ignored = prepare(featureTones, true, [
+    { points: [left], radius: 0.085, value: -1 },
+  ]);
+  expect(ignored.portraitEvidence?.[center]).toBe(0);
+  expect(ignored.portraitEvidence?.[32 * width + 32]).toBeGreaterThan(0.22);
+
+  const rotated = flat.slice();
+  for (const { x, y, tone } of sourceDetails)
+    for (const offset of [-1, 0, 1])
+      rotated.set([...tone, 255], ((x + offset) * width + width - 1 - y) * 4);
+  const rotatedEvidence = prepare(rotated, true, [], 90).portraitEvidence;
+  for (const { x, y } of sourceDetails)
+    expect(rotatedEvidence?.[x * width + width - 1 - y]).toBeGreaterThan(0.22);
 });

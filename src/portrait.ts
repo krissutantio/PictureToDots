@@ -27,15 +27,13 @@ export function portraitEyeSpacing(
   return Math.hypot((a.x - b.x) * width, (a.y - b.y) * height);
 }
 
-/**
- * Use landmarks as search windows. Only measured local dark contrast can reserve
- * a mark; no landmark path, glasses outline, or hidden anatomy is drawn.
- */
+/** Landmarks bound the search for visible contrast in the sampled photo. */
 export function simplifyPortrait(
   data: Uint8ClampedArray,
   w: number,
   h: number,
   tw: number,
+  th: number,
   s: Settings,
   faces: Face[],
   rect: Box,
@@ -43,63 +41,147 @@ export function simplifyPortrait(
 ) {
   const strength = map.strength;
   const evidence = new Float32Array(w * h),
+    toneArea = new Uint8Array(tw * th),
     luma = Float32Array.from(evidence, (_, i) => luminance(data, i * 4)),
-    integral = new Float64Array((w + 1) * (h + 1)),
-    stride = w + 1;
-  for (let y = 0; y < h; y++) {
-    let row = 0;
-    for (let x = 0; x < w; x++) {
-      row += luma[y * w + x];
-      integral[(y + 1) * stride + x + 1] = row + integral[y * stride + x + 1];
-    }
-  }
-  const mean = (x: number, y: number, radius: number) => {
-    const l = Math.max(0, x - radius),
-      r = Math.min(w, x + radius + 1),
-      t = Math.max(0, y - radius),
-      b = Math.min(h, y + radius + 1);
-    return (
-      (integral[b * stride + r] -
-        integral[t * stride + r] -
-        integral[b * stride + l] +
-        integral[t * stride + l]) /
-      ((r - l) * (b - t))
+    warmth = Float32Array.from(
+      evidence,
+      (_, i) => data[i * 4] - data[i * 4 + 1],
     );
+  const meanLuma = localMean(luma, w, h);
+  const meanWarmth = localMean(warmth, w, h);
+  const fineRadius = Math.max(1, Math.round((w / tw) * 0.68));
+  const coarseRadius = fineRadius * 2;
+  const control = { Low: 0.62, Medium: 0.81, High: 1 }[s.facialDetail];
+  const contrastBoost = new Float32Array(w * h);
+  const deposit = (i: number, score: number, delta: number) => {
+    if (score <= evidence[i] || map.importance[i] < 0.17 || map.suppressed?.[i])
+      return;
+    evidence[i] = score;
+    contrastBoost[i] = delta;
+  };
+
+  // Dark creases and lighter gaps are measured independently. Opposite-side
+  // luma comparisons favor the center of a thin stroke over its outside edge.
+  const directions = [
+    [fineRadius, 0],
+    [0, fineRadius],
+    [fineRadius, fineRadius],
+    [fineRadius, -fineRadius],
+  ];
+  const ridge = (x: number, y: number, value: number) => {
+    let contrast = 0;
+    for (const [dx, dy] of directions) {
+      if (
+        x - Math.abs(dx) < 0 ||
+        y - Math.abs(dy) < 0 ||
+        x + Math.abs(dx) >= w ||
+        y + Math.abs(dy) >= h
+      )
+        continue;
+      contrast = Math.max(
+        contrast,
+        Math.min(luma[(y - dy) * w + x - dx], luma[(y + dy) * w + x + dx]) -
+          value,
+      );
+    }
+    return contrast;
+  };
+  const search = (
+    points: Point[],
+    margin: number,
+    kind: "eye line" | "eye" | "brow" | "nose" | "mouth",
+  ) => {
+    if (!points.length) return;
+    const left = Math.min(...points.map((p) => p.x * w)),
+      right = Math.max(...points.map((p) => p.x * w)),
+      top = Math.min(...points.map((p) => p.y * h)),
+      bottom = Math.max(...points.map((p) => p.y * h));
+    for (
+      let y = Math.max(0, Math.floor(top - margin));
+      y < Math.min(h, bottom + margin);
+      y++
+    )
+      for (
+        let x = Math.max(0, Math.floor(left - margin));
+        x < Math.min(w, right + margin);
+        x++
+      ) {
+        const distance = Math.hypot(
+          Math.max(left - x, 0, x - right),
+          Math.max(top - y, 0, y - bottom),
+        );
+        const proximity =
+          kind === "eye line"
+            ? clamp(1 - (distance / margin) ** 2)
+            : clamp((1 - distance / margin) * 2);
+        if (!proximity) continue;
+        const i = y * w + x;
+        const fine = meanLuma(x, y, fineRadius) - luma[i];
+        const coarse = meanLuma(x, y, coarseRadius) - luma[i];
+        const stroke = ridge(x, y, luma[i]);
+        const dark =
+          kind === "eye line"
+            ? Math.max(stroke, Math.min(fine, coarse) * 0.72)
+            : Math.max(fine, coarse * 0.72, stroke * 0.78);
+        const threshold = kind === "eye line" ? 10 : 4;
+        deposit(i, clamp((dark - threshold) / 24) * proximity * control, -dark);
+        if (kind === "eye") {
+          const light = Math.max(-fine, -coarse * 0.75);
+          deposit(
+            i,
+            clamp((light - 9) / 24) * 0.93 * proximity * control,
+            light,
+          );
+        }
+        if (kind === "mouth") {
+          const red = warmth[i] - meanWarmth(x, y, coarseRadius);
+          deposit(
+            i,
+            clamp((red - 4) / 14) * 0.8 * proximity * control,
+            Math.min(0, -fine),
+          );
+        }
+      }
   };
   for (const face of faces) {
     const eyeSpacing = portraitEyeSpacing(face, rect, s.rotation, w, h);
     if (!Number.isFinite(eyeSpacing) || eyeSpacing < 4) continue;
-    const radius = clamp(Math.round(eyeSpacing * 0.18), 3, 24);
-    const eyeWindow = Math.max(2, eyeSpacing * 0.47);
-    const eyes = face.groups.eyes.map((group) =>
-      cropPoint(center(group), rect, s.rotation),
-    );
-    for (const point of eyes) {
-      const px = point.x * w,
-        py = point.y * h;
-      for (
-        let y = Math.max(0, Math.floor(py - eyeWindow));
-        y < Math.min(h, py + eyeWindow);
-        y++
-      )
-        for (
-          let x = Math.max(0, Math.floor(px - eyeWindow));
-          x < Math.min(w, px + eyeWindow);
-          x++
-        ) {
-          const r = Math.hypot(x + 0.5 - px, y + 0.5 - py) / eyeWindow;
-          const i = y * w + x;
-          if (r > 1 || map.importance[i] < 0.17) continue;
-          const contrast = clamp((mean(x, y, radius) - luma[i] - 14) / 42);
-          evidence[i] = Math.max(evidence[i], contrast * clamp((1 - r) * 3));
-        }
-    }
+    const crop = (group: Point[]) =>
+      group.map((point) => cropPoint(point, rect, s.rotation));
+    const eyes = face.groups.eyes.map(crop);
+    search(eyes.flat(), Math.max(2, eyeSpacing * 0.49), "eye line");
+    for (const eye of eyes) search(eye, Math.max(2, eyeSpacing * 0.1), "eye");
+    for (const brow of face.groups.brows)
+      search(crop(brow), Math.max(2, eyeSpacing * 0.08), "brow");
+    search(crop(face.groups.nose), Math.max(2, eyeSpacing * 0.14), "nose");
+    search(crop(face.groups.mouth), Math.max(2, eyeSpacing * 0.1), "mouth");
+
+    const box = face.box;
+    const [a, b] = crop([
+      { x: box.x, y: box.y },
+      { x: box.x + box.width, y: box.y + box.height },
+    ]);
+    const cx = (a.x + b.x) / 2,
+      cy = (a.y + b.y) / 2;
+    const rx = Math.abs(a.x - b.x) / 2,
+      ry = Math.abs(a.y - b.y) / 2;
+    if (rx <= 0 || ry <= 0) continue;
+    for (let y = 0; y < th; y++)
+      for (let x = 0; x < tw; x++) {
+        const u = (x + 0.5) / tw,
+          v = (y + 0.5) / th;
+        if (
+          ((u - cx) / rx) ** 2 + ((v - cy) / ry) ** 2 <= 1 &&
+          !map.suppressed?.[Math.floor(v * h) * w + Math.floor(u * w)]
+        )
+          toneArea[y * tw + x] = 1;
+      }
   }
   for (let i = 0; i < evidence.length; i++) {
     if (map.protected[i]) {
-      const radius = Math.max(2, Math.round((w / tw) * 1.7));
-      const darkness = mean(i % w, Math.floor(i / w), radius) - luma[i];
-      evidence[i] = Math.max(evidence[i], clamp((darkness - 11) / 35));
+      const contrast =
+        meanLuma(i % w, Math.floor(i / w), coarseRadius) - luma[i];
+      deposit(i, clamp((contrast - 11) / 35) * 0.6, -contrast);
     }
     evidence[i] *= strength;
     if (evidence[i] > 0.22) {
@@ -161,5 +243,38 @@ export function simplifyPortrait(
       }
     current = next;
   }
-  return { data: current, evidence };
+  // Reinforce the sign of modest observed contrasts before ink matching.
+  for (let i = 0; i < evidence.length; i++) {
+    const delta = contrastBoost[i];
+    if (evidence[i] <= 0.22 || Math.abs(delta) > 52) continue;
+    const offset =
+      clamp(delta, -38, 32) * evidence[i] * (s.localContrast / 100);
+    for (let k = 0; k < 3; k++) current[i * 4 + k] += offset;
+  }
+  return { data: current, evidence, toneArea };
+}
+
+function localMean(field: Float32Array, w: number, h: number) {
+  const stride = w + 1;
+  const summed = new Float64Array(stride * (h + 1));
+  for (let y = 0; y < h; y++) {
+    let row = 0;
+    for (let x = 0; x < w; x++) {
+      row += field[y * w + x];
+      summed[(y + 1) * stride + x + 1] = row + summed[y * stride + x + 1];
+    }
+  }
+  return (x: number, y: number, radius: number) => {
+    const left = Math.max(0, x - radius),
+      right = Math.min(w, x + radius + 1),
+      top = Math.max(0, y - radius),
+      bottom = Math.min(h, y + radius + 1);
+    return (
+      (summed[bottom * stride + right] -
+        summed[top * stride + right] -
+        summed[bottom * stride + left] +
+        summed[top * stride + left]) /
+      ((right - left) * (bottom - top))
+    );
+  };
 }

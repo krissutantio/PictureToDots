@@ -1731,8 +1731,20 @@ body,
 .notebook-card p {
   font-size: 10px;
 }
-.notebook-card > button:last-child {
-  width: 100%;
+.notebook-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+.notebook-card-actions button:first-child {
+  flex: 1;
+}
+.delete-notebook {
+  color: #8c342f;
+}
+.delete-notebook:hover {
+  background: #faeeee;
+  border-color: #d6afa9;
 }
 .home-privacy {
   margin-top: 25px;

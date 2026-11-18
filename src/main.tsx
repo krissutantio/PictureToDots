@@ -46,6 +46,10 @@ import {
   deleteProject,
   savePreference,
   getPreference,
+  getNotebooks,
+  saveNotebookEntry,
+  activateNotebook,
+  deleteNotebookEntry,
   validateProject,
 } from "./storage";
 import { artworkSVG, download, editedArt, pngExport } from "./render";
@@ -112,8 +116,8 @@ const variantKey = (p: Project, settings = p.settings) =>
     ),
     paletteIdentity(p.palette.markers),
     p.framing,
-    p.analysis,
-    p.importanceStrokes,
+    settings.priority === "Color Accuracy" ? undefined : p.analysis,
+    settings.priority === "Color Accuracy" ? undefined : p.importanceStrokes,
   ]);
 const initialPalette: Palette = {
   name: paletteData.name,
@@ -146,6 +150,10 @@ const initialNotebook: Notebook = {
   bindingCost: 1,
   laborCost: 3,
 };
+const untitledNotebook: Notebook = {
+  ...initialNotebook,
+  title: "Untitled notebook",
+};
 function App() {
   const [cropOpen, setCropOpen] = useState(false);
   const [analysisStatus, setAnalysisStatus] = useState("");
@@ -156,14 +164,14 @@ function App() {
   const [tab, setTab] = useState("Home");
   const [activeStep, setActiveStep] = useState(1);
   const [mobilePanel, setMobilePanel] = useState("steps");
-  const [notebookId, setNotebookId] = useState("default");
   const [notebookLibrary, setNotebookLibrary] = useState<NotebookEntry[]>([]);
+  const activeNotebook = notebookLibrary[0];
+  const notebook = activeNotebook?.notebook ?? untitledNotebook;
   const [preview, setPreview] = useState("Colored");
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
   const [saved, setSaved] = useState<Project[]>([]);
-  const [notebook, setNotebook] = useState<Notebook>(initialNotebook);
   const [zoom, setZoom] = useState(1);
   const stageRef = useRef<HTMLDivElement>(null);
   const [stageSize, setStageSize] = useState({ width: 600, height: 600 });
@@ -191,6 +199,7 @@ function App() {
     importInput = useRef<HTMLInputElement>(null),
     paletteInput = useRef<HTMLInputElement>(null),
     calibrationInput = useRef<HTMLInputElement>(null);
+  const processedKey = useRef<string | undefined>(undefined);
   const revision = useRef(0),
     dragging = useRef(false);
   const s = project.settings;
@@ -292,29 +301,12 @@ function App() {
   useEffect(() => {
     Promise.all([
       getProjects(),
-      getPreference("notebook"),
       getPreference("palette"),
-      getPreference("notebooks"),
-      getPreference("activeNotebook"),
+      getNotebooks(initialNotebook),
     ])
-      .then(([items, n, p, library, activeId]) => {
+      .then(([items, p, entries]) => {
         setSaved(items);
-        const entries: NotebookEntry[] = Array.isArray(library)
-          ? library.filter(
-              (entry) =>
-                entry &&
-                typeof entry.id === "string" &&
-                entry.notebook &&
-                Array.isArray(entry.notebook.pages),
-            )
-          : [];
         setNotebookLibrary(entries);
-        const selected =
-          entries.find((entry) => entry.id === activeId) || entries[0];
-        if (selected) {
-          setNotebookId(selected.id);
-          setNotebook(selected.notebook);
-        } else if (n) setNotebook(n);
         if (p) {
           const untouched =
             [
@@ -341,23 +333,6 @@ function App() {
       })
       .catch(report);
   }, []);
-  useEffect(() => {
-    if (!ready) return;
-    savePreference("notebook", notebook).catch(report);
-    savePreference("activeNotebook", notebookId).catch(report);
-    setNotebookLibrary((items) => [
-      {
-        id: notebookId,
-        updated: Date.now(),
-        notebook: structuredClone(notebook),
-      },
-      ...items.filter((item) => item.id !== notebookId),
-    ]);
-  }, [notebook, notebookId, ready]);
-  useEffect(() => {
-    if (ready && notebookLibrary.length)
-      savePreference("notebooks", notebookLibrary).catch(report);
-  }, [notebookLibrary, ready]);
   useEffect(() => {
     if (!notice) return;
     const id = setTimeout(() => setNotice(""), 5000);
@@ -407,8 +382,15 @@ function App() {
       setBusy(false);
       return;
     }
+    const key = variantKey(project);
     const cached = project.variants?.[s.mode];
-    if (cached?.key === variantKey(project) && preview !== "Strategies") {
+    const current = processedKey.current === key && project.art;
+    if (current && preview !== "Strategies") {
+      setBusy(false);
+      return;
+    }
+    if (cached?.key === key && preview !== "Strategies") {
+      processedKey.current = key;
       setProject((p) => ({ ...p, art: cached.art, edits: cached.edits }));
       setBusy(false);
       return;
@@ -417,6 +399,7 @@ function App() {
     let worker: Worker | undefined;
     const job = ++revision.current;
     setBusy(true);
+    setComparisons({});
     setError("");
     const timer = setTimeout(async () => {
       try {
@@ -429,7 +412,13 @@ function App() {
           if (disposed || job !== revision.current) return;
           if (e.data.error) report(e.data.error);
           else {
-            setProject((p) => ({ ...p, art: e.data.art }));
+            if (!current) {
+              processedKey.current = key;
+              setProject((p) => ({
+                ...p,
+                art: cached?.key === key ? cached.art : e.data.art,
+              }));
+            }
             if (e.data.comparisons) setComparisons(e.data.comparisons);
           }
           setBusy(false);
@@ -464,7 +453,12 @@ function App() {
       clearTimeout(timer);
       worker?.terminate();
     };
-  }, [variantKey(project), project.cropReview, preview === "Strategies"]);
+  }, [
+    variantKey(project),
+    project.cropReview,
+    preview === "Strategies",
+    preview === "Strategies" ? project.analysis : undefined,
+  ]);
   function edit(change: (p: Project) => Project) {
     setPast((v) => [...v.slice(-29), structuredClone(project)]);
     setFuture([]);
@@ -530,18 +524,58 @@ function App() {
     setMobilePanel("steps");
     setTab("Create");
   }
+  function missingNotebook(entries: NotebookEntry[]) {
+    setNotebookLibrary(entries);
+    setTab((current) => (current === "Notebook Builder" ? "Home" : current));
+    report(Error("This notebook is no longer in your local library."));
+  }
+  function storeNotebook(data: Notebook, id?: string) {
+    const entry = {
+      id: id ?? crypto.randomUUID(),
+      updated: Date.now(),
+      notebook: data,
+    };
+    setNotebookLibrary((items) => [
+      entry,
+      ...items.filter((item) => item.id !== entry.id),
+    ]);
+    saveNotebookEntry(entry, id === undefined)
+      .then(({ entries, changed }) => {
+        if (!changed) missingNotebook(entries);
+      })
+      .catch(report);
+  }
+  function setNotebook(change: (current: Notebook) => Notebook) {
+    if (ready) storeNotebook(change(notebook), activeNotebook?.id);
+  }
   function newNotebook() {
-    setNotebookId(crypto.randomUUID());
-    setNotebook({
-      ...structuredClone(initialNotebook),
-      title: "Untitled notebook",
-    });
+    storeNotebook(untitledNotebook);
     setTab("Notebook Builder");
   }
-  function editNotebook(entry: NotebookEntry) {
-    setNotebookId(entry.id);
-    setNotebook(structuredClone(entry.notebook));
-    setTab("Notebook Builder");
+  async function editNotebook(entry: NotebookEntry) {
+    try {
+      const { entries, changed } = await activateNotebook(entry.id);
+      if (changed) {
+        setNotebookLibrary(entries);
+        setTab("Notebook Builder");
+      } else {
+        missingNotebook(entries);
+      }
+    } catch (e) {
+      report(e);
+    }
+  }
+  async function removeNotebook(entry: NotebookEntry) {
+    setError("");
+    try {
+      const remaining = await deleteNotebookEntry(entry.id);
+      setNotebookLibrary(remaining);
+      setNotice("Notebook deleted from this device");
+      return true;
+    } catch (e) {
+      report(e);
+      return false;
+    }
   }
   function open(p: Project) {
     const restored = {
@@ -585,8 +619,7 @@ function App() {
           )
         )
           throw Error("Invalid notebook backup.");
-        setNotebookId(crypto.randomUUID());
-        setNotebook({ ...initialNotebook, ...value.notebook });
+        storeNotebook({ ...initialNotebook, ...value.notebook });
         setTab("Notebook Builder");
       } else {
         if (!validateProject(value))
@@ -942,6 +975,7 @@ function App() {
               key={t}
               aria-label={t}
               title={t}
+              disabled={t === "Notebook Builder" && !ready}
               className={tab === t ? "active" : ""}
               onClick={() => setTab(t)}
             >
@@ -1022,8 +1056,10 @@ function App() {
       {tab === "Home" && (
         <Home
           notebooks={notebookLibrary}
+          ready={ready}
           onNew={newNotebook}
           onEdit={editNotebook}
+          onDelete={removeNotebook}
           onPage={newPage}
         />
       )}
@@ -1044,7 +1080,7 @@ function App() {
               </button>
               <button
                 className="dark"
-                disabled={!exportAllowed || dotBlocked}
+                disabled={!ready || !exportAllowed || dotBlocked}
                 onClick={() => {
                   setNotebook((n) => ({
                     ...n,
@@ -1232,6 +1268,18 @@ function App() {
                     ))}
                   </select>
                 </label>
+                {s.mode === "dots" &&
+                  s.priority === portraitPriority &&
+                  (project.art?.dotField?.portraitV1 ||
+                    (project.art?.dotField?.portraitV2 && s.dotLayout === "adaptive" && s.dotLayoutVersion === 3)) &&
+                  !project.art.dotField.portraitV3 && (
+                    <button
+                      className="text-button"
+                      onClick={() => setPreview("Strategies")}
+                    >
+                      Review updated portrait detail
+                    </button>
+                  )}
                 <button
                   className="text-button"
                   onClick={() => settings(portraitPreset)}
@@ -1703,6 +1751,21 @@ function App() {
                   project={project}
                   comparisons={comparisons}
                   busy={busy}
+                  onUpgradePortrait={() => {
+                    const updated = comparisons[portraitPriority];
+                    if (busy || !updated?.dotField?.portraitV3) return;
+                    processedKey.current = variantKey(project);
+                    edit((p) => ({
+                      ...p,
+                      art: updated,
+                      edits: {},
+                      variants: { ...p.variants, dots: undefined },
+                    }));
+                    setPreview("Template");
+                    setNotice(
+                      "Updated portrait applied. Undo restores the previous artwork.",
+                    );
+                  }}
                   onProof={() =>
                     action(async () =>
                       download(
@@ -2058,6 +2121,7 @@ function App() {
             <div className="button-row">
               <button
                 className="primary"
+                disabled={!ready}
                 onClick={() => importInput.current?.click()}
               >
                 <FolderOpen size={16} /> Import project or notebook

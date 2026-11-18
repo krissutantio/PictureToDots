@@ -92,6 +92,8 @@ export type Artwork = {
     assignments: number[];
     importance?: number[];
     portraitV1?: number[];
+    portraitV2?: { evidence: number[]; toneArea: number[] };
+    portraitV3?: { evidence: number[]; toneArea: number[] };
   };
   diagnostics?: {
     importance: number[];

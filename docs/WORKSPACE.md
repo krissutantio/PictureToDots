@@ -3,17 +3,25 @@
 ## Navigation and notebooks
 
 The app starts at Home, which lists locally saved notebooks. Create notebook
-opens a new independent notebook; Edit notebook restores its pages and settings.
+opens a new independent notebook. Edit notebook restores its pages and settings.
+Delete on a notebook card asks for confirmation before removing that notebook and
+its page copies from this device. Separately saved projects stay in My Projects.
 New page opens the studio with the current marker collection and target notebook.
+If the active notebook is deleted, the most recently opened or edited remaining
+notebook becomes active. After the final notebook is deleted, adding a studio
+page or changing settings in Notebook Builder starts a new notebook.
 The compact top bar is reused across Home, the studio, projects, marker sets,
 notebook assembly and manufacturing. There is no server route or account.
 
 Notebook metadata and pages live in the IndexedDB `preferences` store:
-`notebooks` is a list of `{id, updated, notebook}`, `activeNotebook` identifies the
-last notebook, and `notebook` remains a compatibility snapshot. An existing lone
-notebook preference migrates into the library without deleting it. Autosaving
-notebook settings/pages does not replace the separate Save project/JSON backup
-workflow for an individual page. Importing a notebook creates a new library entry.
+`notebooks` is an ordered list of `{id, updated, notebook}`, `activeNotebook`
+identifies the active notebook at the front of the list, and `notebook` remains a
+compatibility snapshot. These preferences update in one transaction. An existing
+lone notebook preference migrates into the library when the list is absent.
+Deleting the last notebook keeps an empty list and clears the active ID and
+snapshot. Edits from another tab cannot restore a deleted entry. Use Save
+project or JSON backup to retain an individual page separately from its
+notebook. Importing a notebook creates a new library entry.
 
 ## Studio flow
 
@@ -34,9 +42,10 @@ screen inches. PDFs still use points; print at 100%/actual size.
 
 ## Verification
 
-`workspace.spec.ts` covers notebook creation/reopening across reload, crop-driven
-step progression, a fitted paper and no page overflow at desktop/tablet sizes,
-and mobile panel reachability. `production.spec.ts` covers the repository subpath,
+`workspace.spec.ts` covers notebook creation and deletion across reloads,
+cancellation, legacy migration, stale-tab edits, preserved standalone projects,
+crop-driven step progression, a fitted paper without document overflow at
+desktop/tablet sizes, and mobile panel reachability. `production.spec.ts` covers the repository subpath,
 offline Home/studio launch and installed-app resources. Actual iOS installation,
 keyboard behavior, Safari rendering and physical proofs remain device checks.
 

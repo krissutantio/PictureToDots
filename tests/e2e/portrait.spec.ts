@@ -43,6 +43,13 @@ test("portrait option compares, exports and restores feature-aware dots without 
     page.getByRole("heading", { name: "Maximum Recognizability", exact: true }),
   ).toBeVisible();
   await expect(page.locator(".comparison-art svg")).toHaveCount(3);
+  const crop = page.getByAltText(
+    "Source photograph with the accepted crop and rotation",
+  );
+  await expect(crop).toBeVisible();
+  expect(await crop.evaluate((img: HTMLImageElement) => img.naturalWidth)).toBe(
+    192,
+  );
   const download = page.waitForEvent("download");
   await page
     .getByRole("button", { name: "Download comparison proof PDF" })
@@ -65,9 +72,9 @@ test("portrait option compares, exports and restores feature-aware dots without 
     await readFile((await (await pending).path())!, "utf8"),
   );
   expect(saved.settings.priority).toBe("Portrait Simplification");
-  expect(saved.art.dotField.portraitV1.some((v: number) => v > 0.22)).toBe(
-    true,
-  );
+  expect(
+    saved.art.dotField.portraitV3.evidence.some((v: number) => v > 0.22),
+  ).toBe(true);
   expect(saved.art.palette.length).toBeLessThanOrEqual(12);
   expect(saved.originalFile.data.split(",")[1]).toBe(
     (await readFile("tests/fixtures/astronaut.png")).toString("base64"),
@@ -77,5 +84,41 @@ test("portrait option compares, exports and restores feature-aware dots without 
   await page.getByRole("button", { name: "Open", exact: true }).click();
   await expect(marks.first()).toBeVisible();
   expect(await markIDs()).toEqual(before);
+  for (const version of [1, 2]) {
+    const legacy = structuredClone(saved);
+    legacy.id = `legacy-portrait-${version}-upgrade`;
+    if (version === 1)
+      legacy.art.dotField.portraitV1 = legacy.art.dotField.portraitV3.evidence;
+    else legacy.art.dotField.portraitV2 = legacy.art.dotField.portraitV3;
+    delete legacy.art.dotField.portraitV3;
+    await page
+      .locator("input[type=file]")
+      .nth(1)
+      .setInputFiles({
+        name: "legacy-portrait.json",
+        mimeType: "application/json",
+        buffer: Buffer.from(JSON.stringify(legacy)),
+      });
+    await expect(
+      page.getByRole("button", { name: "Review updated portrait detail" }),
+    ).toBeVisible();
+    await expect(marks.first()).toBeVisible();
+    const legacyIDs = await markIDs();
+    await page
+      .getByRole("button", { name: "Review updated portrait detail" })
+      .click();
+    const upgrade = page.getByRole("button", {
+      name: "Use updated portrait",
+      exact: true,
+    });
+    await expect(upgrade).toBeEnabled();
+    await upgrade.click();
+    await expect(marks.first()).toBeVisible();
+    expect(await markIDs()).toEqual(before);
+    await page.getByRole("button", { name: "Undo edit", exact: true }).click();
+    expect(await markIDs()).toEqual(legacyIDs);
+    await page.getByRole("button", { name: "Redo edit", exact: true }).click();
+    expect(await markIDs()).toEqual(before);
+  }
   expect(external).toEqual([]);
 });

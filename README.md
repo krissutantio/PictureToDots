@@ -31,7 +31,7 @@ Build before running the full browser suite: it also tests `dist/` under `/Pictu
 - Reviewable subject-focused crop suggestions and a draggable, resizable crop editor with keyboard nudging. Enable white paper margins to move in both axes at 1×.
 - Optional self-hosted face landmarks, object detection and scene classification, with generic saliency fallback. Color Accuracy, Balanced, Feature Preservation and Maximum Recognizability priorities share your selected grid and physical marker limits.
 - Source-coordinate importance brush, measured-feature protection and three-strategy comparison thumbnails with a printable comparison PDF. No generated facial landmarks or promised likeness.
-- A Home library for multiple local notebooks and a compact shared navigation bar. The studio fits the viewport with one open step, crop-to-style progression, internally scrollable settings/lists, and mobile Steps/Preview/Export panels.
+- A Home library for multiple local notebooks, with confirmed deletion that preserves separately saved projects, and a compact shared navigation bar. The studio fits the viewport with one open step, crop-to-style progression, internally scrollable settings/lists, and mobile Steps/Preview/Export panels.
 - Dot art with regular/staggered placement or **Reference · spaced symbols**. Adaptive marks use continuous positions, independent IDs and individual sizes, with whitespace around individual marks and coarse-to-fine placement, rather than filling every gap. A higher-resolution measured field preserves more observed detail; preview/print share the same geometry. New pages default to reference-style spacing with a 2–3.2 mm mark range; older pages retain their layout and sizes until explicitly upgraded. Choose it under **Letter placement**; **Advanced settings → Dot diameter** controls its maximum size, and **Minimum usable dot** controls its minimum.
 - Adjustable sampling resolution, physical mark sizes, light-gray letters or outlined circles, paper-white regions, cleanup and Floyd–Steinberg dithering. Small regions that cannot receive an adaptive mark are flagged for review.
 - Traditional line art and color-by-letter art, based on edge-aware color segmentation, connected components, adjacent-region merging, closed contour tracing, shared-boundary simplification and interior label placement.
@@ -154,7 +154,7 @@ For a custom domain:
 4. Retain the default relative base or use `/`; do not retain an explicit repository-only base when serving at a custom-domain root.
 5. Enable HTTPS in Pages once DNS and certificate provisioning complete.
 
-The repository remote is configured at [krissutantio/PictureToDots](https://github.com/krissutantio/PictureToDots), and the initial commit has been pushed. Public Pages deployment has not been verified in this chat.
+The repository remote is configured at [krissutantio/PictureToDots](https://github.com/krissutantio/PictureToDots), and release `8ca9812` was deployed and verified on 2026-11-16. Later local changes require a separate release; see [HANDOFF](docs/HANDOFF.md).
 
 ## Source map
 
@@ -180,4 +180,4 @@ Photos and projects are processed locally. Model/SDK/WASM files are bundled unde
 
 The supplied dog/pickup/flowers/pumpkins illustration is documented as a future contour-and-hatching mode in [LINE_ART_REFERENCE](docs/LINE_ART_REFERENCE.md) and [ROADMAP](docs/ROADMAP.md). The present segmented line-art algorithm remains in place.
 
-In the local portrait prototype, choose **Style & detail → Conversion priority → Portrait Simplification**. It smooths minor tonal variation and reserves dots for observed facial contrast with reference spacing. **Strategies** compares it against Color Accuracy and Maximum Recognizability at the same settings. See [PORTRAIT_SIMPLIFICATION](docs/PORTRAIT_SIMPLIFICATION.md) for matched proof results and remaining limitations; small faces and glasses can still lose detail.
+In the local portrait prototype, choose **Style & detail → Conversion priority → Portrait Simplification**. It smooths minor tonal variation and preserves observed eye, glasses, nose and mouth contrast with reference spacing. Updated placement keeps nearby skin tones coherent, follows measured feature strokes and uses tighter spacing between supported detail dots. Older portrait projects offer **Review updated portrait detail → Use updated portrait**; Undo restores the previous artwork and edits. **Strategies** compares it against Color Accuracy and Maximum Recognizability at the same settings. See [PORTRAIT_SIMPLIFICATION](docs/PORTRAIT_SIMPLIFICATION.md) for matched proof results and remaining limitations; small faces and glasses can still lose detail.

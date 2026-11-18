@@ -1,9 +1,9 @@
 # Recognizable portraits through selective simplification
 
-Status: **first opt-in implementation, local and awaiting visual acceptance**
-(2026-11-16). In **Style & detail**, select **Conversion priority → Portrait
-Simplification**. With reference spacing, **Strategies** compares it with
-Color Accuracy and Maximum Recognizability under the same settings.
+In **Style & detail**, select **Conversion priority → Portrait Simplification**.
+With reference spacing, **Strategies** compares it with Color Accuracy and
+Maximum Recognizability under the same settings. The updated strategy improves
+some features in the closer private proofs. The latest ridge-placement/spacing feedback loop is recorded in [PORTRAIT_DETAIL_EXPERIMENTS](PORTRAIT_DETAIL_EXPERIMENTS.md). Visual acceptance is pending.
 
 ## Goal and reported failure
 
@@ -51,63 +51,81 @@ fixtures can test mechanics but cannot establish success on these private photos
   larger paper or changed permitted mark size for explicit review; never silently
   change these constraints to achieve a better-looking result.
 
-## First implementation
+## Processing and placement
 
 - **Selective tonal smoothing:** two scales of range-weighted averaging reduce
-  small variations, while a local dark-contrast map protects observed details.
-  Landmark neighborhoods restrict the search; no feature outline is drawn
-  from coordinates. A wider eye neighborhood can retain pieces of an observed
-  frame but does not detect glasses as an object.
-- **Feature-reserved placement:** evidence above threshold gets first choice
-  of space, with marks at the configured minimum diameter. A mark must be
-  centered in the assigned ink and supported by at least 34% of sampled disk
-  area in that ink. This intentionally permits some overlap of other colored
-  regions to represent thin supported detail. It still rejects paper cutouts
-  and collisions. All ordinary marks keep the full same-ink footprint test.
-- **Compatibility:** a validated optional `dotField.portraitV1` evidence map
-  explicitly selects the new packing behavior inside adaptive v3. V1/v2 and
-  old v3 projects without that field keep existing packing. Regular and older
-  adaptive modes can display the simplified tones without feature reservation.
-  Line Art keeps existing feature-aware processing; the portrait pipeline
-  never runs there. Without detected facial landmarks the mode falls back to
-  generic feature-aware processing and shows a warning.
-- **Palette:** keep existing weighted matching for the reduced field and
-  nearest enabled ink for the detail field. Feature evidence weights the
-  reduced field. A dedicated boundary-aware palette optimizer is still a
-  proposal. Photos with several detected faces give each visible face a
-  search window; explicit per-face selection is also future work. The
-  importance brush can raise or suppress the priority of observed evidence.
-- **Physical advisory:** if measured eye separation within the crop is below
-  four minimum dot diameters on the current print layout, show an advisory.
-  A separate warning flags a detected eye outside the crop. These are
-  checks for review, not a promise of likeness above either threshold.
+  small variations while preserving measured dark creases, light gaps and
+  mouth color contrast. Crop-mapped landmarks bound the pixel search. The
+  wider eye-line search measures dark ridges visible in the source and can
+  pick up parts of a lower glasses rim. Glasses have no dedicated detector.
+  Importance strokes can strengthen or suppress measured evidence.
+- **Feature-reserved placement:** adaptive v3 ranks supported detail by
+  evidence and disk coverage, then reserves minimum-diameter dots first.
+  The center keeps its assigned ink. At least 25% of the sampled disk must
+  support that ink or a similar selected ink. Ordinary dots may span a
+  similar-ink boundary when their center is in the facial tone area and at
+  least 78% of the sampled disk supports the center ink. Similar inks differ
+  by at most 11 in CIELAB lightness and 18 in CIELAB distance. Elsewhere,
+  ordinary dots require full same-ink footprints. All disks still reject
+  paper cutouts and must fit the configured diameters and bounds. V3 adds observed
+  ridge candidates and allows 0.45 mm whitespace between two supported detail
+  marks; other pairs retain reference spacing.
+- **Palette:** both light and dark evidence influence the reduced samples
+  used for palette selection. The detail field matches those selected inks.
+  The chosen budget and enabled markers remain explicit. Multiple detected
+  faces each contribute their own search windows.
+- **Compatibility:** new conversions store `dotField.portraitV3`, with
+  high-resolution `evidence` and a reduced `toneArea` mask. Both are validated
+  on import. Saved `portraitV2` retains its exact previous packing. Saved `portraitV1` artwork retains its original 34% same-ink
+  reservation rule and exact geometry. Regular and pre-v3 adaptive layouts
+  render the simplified tones with their own placement rules. Line Art uses
+  its existing feature-aware processing. When facial landmarks are unavailable,
+  the conversion uses generic structure and shows a warning.
+- **Physical advisory:** the app flags an eye outside the crop and measured eye
+  separation smaller than four minimum dot diameters on the current print layout.
+
+## Updating a saved portrait
+
+Open the saved portrait and choose **Style & detail → Review updated portrait
+detail** to preview the new conversion in **Strategies**. Choose **Use updated
+portrait** on the Portrait Simplification card to apply the proof and open the
+template. Applying the update resets manual dot colors because centers can
+move. **Undo edit** restores the previous artwork and manual colors. The update
+uses the accepted crop, print settings and original image from the project.
 
 ## Private proof results
 
-Local Chromium used the current release's Maximum Recognizability as baseline.
-Each pair used 5 × 7 in paper, 60 sampling columns, adaptive v3, 2–3.2 mm dots
-and the same chart palette. Compare within a row: the 60-color legend uses
-more print area than the 12-color legend. The table records baseline → portrait
-mark counts. Centered and closer proof crops are separate local experiments;
-neither replaces the user's framing.
+Local Chromium compared Maximum Recognizability, the previous Portrait
+Simplification and the update on both private photos. Each comparison used the
+same accepted crop and sampled source, 5 × 7 in paper, 60 sampling columns,
+adaptive v3, 2–3.2 mm dots and the same enabled chart palette. The 60-color
+legend leaves less room for artwork. Centered and closer crops are separate
+proof settings. The counts below are Maximum Recognizability → previous portrait
+→ updated portrait.
 
-| Photo / crop           | 12-color limit | 60-color limit | Visual observation                                                                                                        |
-| ---------------------- | -------------- | -------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| Photo Booth / centered | 610 → 612      | 450 → 461      | One detected eye is outside the crop. Mouth slightly stronger; overall facial structure remains unresolved.               |
-| Photo Booth / closer   | 593 → 648      | 468 → 501      | Eye/lash and mouth clusters read better. Nose detail and expression remain incomplete; face/hair outline broadly similar. |
-| Glasses / centered     | 509 → 486      | 363 → 355      | More dark structure at the eye line with fewer total dots. Frame shape and eyes remain difficult to tell apart.           |
-| Glasses / closer       | 520 → 564      | 372 → 415      | Eye area improves most. Nose and lips are still sparse; frames and eyes partly merge. Background remains prominent.       |
+| Photo and crop        | 12-color limit  | 60-color limit  | Observed in the update                                                                      |
+| --------------------- | --------------- | --------------- | ------------------------------------------------------------------------------------------- |
+| Photo Booth, centered | 610 → 612 → 633 | 450 → 461 → 477 | One eye lies outside the crop. Facial structure remains unresolved.                         |
+| Photo Booth, closer   | 593 → 648 → 706 | 468 → 501 → 566 | Fuller facial tones and clearer lip contour. Nose detail and expression remain limited.     |
+| Glasses, centered     | 509 → 486 → 485 | 363 → 355 → 361 | Eyes and frames remain difficult to distinguish at this size.                               |
+| Glasses, closer       | 520 → 564 → 576 | 372 → 415 → 437 | Lower rim segments, nose shadows and lips read more clearly. Eyes and frames still overlap. |
 
-A third proof arm kept the simplified input with ordinary v3 packing. Its eye
-areas still dropped thin strokes, especially in the glasses reference; reserving
-positions did more for that area than smoothing alone. Closer proofs have a
-higher mark count, so those improvements cannot all be attributed to reallocation
-at equal counts. Chromium detected one face per supplied photo and made zero
-external HTTP requests. Example processing plus first mark placement took
-about 0.5–0.8 s for the new option on this host, excluding local model inference.
-PDF symbol templates were rendered for visual inspection, not printed on paper.
-The user has not yet accepted the likeness. Private proofs remain out of Git
-and deployment assets.
+A proof arm with updated tones and ordinary v3 packing continued to lose thin
+eye-area detail. In the 12-color closer proofs, the updated packer changed the
+face-region counts from 540 to 598 for Photo Booth and from 228 to 247 for
+Glasses, compared with the previous portrait. Those gains include more overall
+marks. An earlier experiment allowed similar-ink fill throughout the artwork
+and added more background marks. The selected version limits that fill rule to
+detected facial tone areas.
+
+Chromium detected one face per photo and made zero external HTTP requests.
+Across the eight matched cases, worker processing and first placement took
+about 0.25–0.51 s on this host, excluding model inference. Every placed mark used
+an enabled ink. Diameters and symbol footprints passed bounds and collision
+checks, and JSON round trips reproduced the marks. The proofs compare rendered
+colored dots and symbol templates. Physical ink and paper proofs and user
+acceptance of likeness remain open. Private proofs stay outside Git and
+deployment assets.
 
 ## Integration and compatibility
 

@@ -13,6 +13,7 @@ self.onmessage = ({ data: job }) => {
       data: Uint8ClampedArray,
       importance?: Float32Array,
       portraitEvidence?: Float32Array,
+      portraitToneArea?: Uint8Array,
     ) => {
       if (art.mode !== "dots" || !job.inputWidth) return art;
       const detail = processPixels(
@@ -34,7 +35,13 @@ self.onmessage = ({ data: job }) => {
         height: job.inputHeight,
         assignments: detail.assignments,
         importance: importance ? Array.from(importance) : undefined,
-        portraitV1: portraitEvidence ? Array.from(portraitEvidence) : undefined,
+        portraitV3:
+          portraitEvidence && portraitToneArea
+            ? {
+                evidence: Array.from(portraitEvidence),
+                toneArea: Array.from(portraitToneArea),
+              }
+            : undefined,
       };
       if (settings.background !== "keep")
         art.dotField.assignments = detail.assignments.map(
@@ -106,6 +113,7 @@ self.onmessage = ({ data: job }) => {
         prepared.detailData,
         prepared.detailImportance,
         prepared.portraitEvidence,
+        prepared.portraitToneArea,
       );
     };
     const art = run(job.settings);

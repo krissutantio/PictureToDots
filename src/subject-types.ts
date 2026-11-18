@@ -62,4 +62,5 @@ export type FeatureData = {
   edges: Float32Array;
   protected: Uint8Array;
   strength: number;
+  suppressed?: Uint8Array;
 };

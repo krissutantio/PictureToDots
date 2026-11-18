@@ -5,8 +5,7 @@
 Offer a reference-inspired dot layout with irregular positions and variable-size
 letters/marks. This is an explicit layout choice, independent of conversion
 priority and difficulty. Keep regular/staggered grids available and migrate old
-projects to regular layout. New projects retain their existing layout until the
-user chooses adaptive placement.
+projects to regular layout. New projects default to v3 reference spacing; existing projects retain their saved layout until explicitly upgraded.
 
 Use deterministic spatial packing on the accepted crop's measured color field:
 smaller marks near color boundaries and high-importance detail; larger marks in
@@ -36,7 +35,7 @@ The selected product is Ohuhu Maui 60, water-based brush/fineliner. Marker numbe
 - Smaller marks near measured detail; no invisible edits or changing positions
   during recoloring, save/reopen, JSON round trips or presentation changes.
 - 60 valid enabled swatches; full-set matching excludes disabled entries; unique
-  two-letter keys; readable multipage keys and calibration charts.
+  permanent single-character keys (legacy two-letter keys remain supported); readable multipage keys and calibration charts.
 - Browser coverage for switching layouts, edits, backups, all exports and both
   regular and adaptive print proofs; unit tests, build and full browser suite.
 
@@ -45,7 +44,7 @@ The selected product is Ohuhu Maui 60, water-based brush/fineliner. Marker numbe
 Completed: shared deterministic packing, coverage advisories, 60-color eligibility,
 physical blockers, wrapped/paginated keys, backup/edit stability and safe legacy
 preference migration. See [TESTING](TESTING.md) for the 28-unit/14-browser results
-and print-proof review. The official palette mapping remains unresolved.
+and print-proof review. Marker numbers now match the supplied chart; physical ink calibration remains unresolved.
 
 ## Continuous placement revision (v2)
 
@@ -62,7 +61,7 @@ Size/density follow observed boundaries and importance. Physical diameter,
 letter footprint, non-overlap and safe-area constraints still apply. Coverage
 advisories count unrepresented regions in the high-resolution field.
 
-`Settings.dotLayoutVersion` defaults to 2 for new work. A saved adaptive project
+This revision originally defaulted `Settings.dotLayoutVersion` to 2; new work now defaults to v3 as described below. A saved adaptive project
 without that field migrates to version 1, preserving its previous coordinates and
 source-cell edits. The explicit Upgrade to free placement action opts into v2.
 Do not change v1 geometry or silently reinterpret v2 stable IDs in future edits.
@@ -89,3 +88,9 @@ The reference's one-character readability is addressed by the permanent
 size does not encode another color or multiple marks. Existing v1/v2 geometry and
 old projects stay intact until explicit upgrade. The supplied photographs and
 screenshots remain private; tests use generated fields and existing public fixtures.
+
+The optional `portraitV3` evidence revision adjusts this aesthetic spacing only
+between two supported detail marks (0.45 mm whitespace), and adds measured ridge
+centers. Ordinary reference dots and saved portrait V1/V2 retain their rules.
+See [PORTRAIT_DETAIL_EXPERIMENTS](PORTRAIT_DETAIL_EXPERIMENTS.md) for the matched
+comparisons and distinction between aesthetic whitespace and physical overlap.

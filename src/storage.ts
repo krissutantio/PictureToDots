@@ -1,6 +1,11 @@
 import { isSymbol, markerLabel } from "./symbols";
 import { openDB } from "idb";
-import { defaults, type Project } from "./types";
+import {
+  defaults,
+  type Notebook,
+  type NotebookEntry,
+  type Project,
+} from "./types";
 const db = () =>
   openDB("paper-pigment", 1, {
     upgrade(db) {
@@ -25,6 +30,113 @@ export async function savePreference(key: string, value: unknown) {
 export async function getPreference(key: string) {
   return (await db()).get("preferences", key);
 }
+
+let notebookConnection: ReturnType<typeof db> | undefined;
+async function notebookTransaction() {
+  notebookConnection ??= db().catch((error) => {
+    notebookConnection = undefined;
+    throw error;
+  });
+  return (await notebookConnection).transaction("preferences", "readwrite");
+}
+
+async function writeNotebookLibrary(
+  tx: Awaited<ReturnType<typeof notebookTransaction>>,
+  entries: NotebookEntry[],
+) {
+  const active = entries[0];
+  await Promise.all([
+    tx.store.put(entries, "notebooks"),
+    active
+      ? tx.store.put(active.id, "activeNotebook")
+      : tx.store.delete("activeNotebook"),
+    active
+      ? tx.store.put(active.notebook, "notebook")
+      : tx.store.delete("notebook"),
+    tx.done,
+  ]);
+}
+
+export async function getNotebooks(
+  initial: Notebook,
+): Promise<NotebookEntry[]> {
+  const tx = await notebookTransaction();
+  const stored = await tx.store.get("notebooks");
+  const activeId = await tx.store.get("activeNotebook");
+  if (!Array.isArray(stored)) {
+    const legacy = await tx.store.get("notebook");
+    const entries = [
+      {
+        id: typeof activeId === "string" ? activeId : "default",
+        updated: Date.now(),
+        notebook: Array.isArray(legacy?.pages) ? legacy : initial,
+      },
+    ];
+    await writeNotebookLibrary(tx, entries);
+    return entries;
+  }
+
+  // An empty library is authoritative after the last notebook is deleted.
+  const entries: NotebookEntry[] = stored.filter(
+    (entry) =>
+      typeof entry?.id === "string" && Array.isArray(entry.notebook?.pages),
+  );
+  const active = entries.find((entry) => entry.id === activeId);
+  const ordered = active
+    ? [active, ...entries.filter((entry) => entry.id !== active.id)]
+    : entries;
+  if (
+    ordered.length !== stored.length ||
+    ordered[0]?.id !== stored[0]?.id ||
+    ordered[0]?.id !== activeId
+  ) {
+    await writeNotebookLibrary(tx, ordered);
+  } else {
+    await tx.done;
+  }
+  return ordered;
+}
+
+async function changeNotebooks(
+  change: (entries: NotebookEntry[]) => NotebookEntry[] | undefined,
+) {
+  const tx = await notebookTransaction();
+  const entries: NotebookEntry[] = (await tx.store.get("notebooks")) ?? [];
+  const next = change(entries);
+  if (next === undefined) {
+    await tx.done;
+    return { entries, changed: false };
+  }
+  await writeNotebookLibrary(tx, next);
+  return { entries: next, changed: true };
+}
+
+export function saveNotebookEntry(entry: NotebookEntry, create: boolean) {
+  return changeNotebooks((entries) => {
+    // A tab editing a deleted notebook must not reinsert it during autosave.
+    if (!create && !entries.some((item) => item.id === entry.id)) return;
+    return [entry, ...entries.filter((item) => item.id !== entry.id)];
+  });
+}
+
+export function activateNotebook(id: string) {
+  return changeNotebooks((entries) => {
+    const entry = entries.find((item) => item.id === id);
+    if (!entry) return;
+    return [
+      { ...entry, updated: Date.now() },
+      ...entries.filter((item) => item.id !== id),
+    ];
+  });
+}
+
+export async function deleteNotebookEntry(id: string) {
+  const { entries } = await changeNotebooks((entries) =>
+    entries.filter((item) => item.id !== id),
+  );
+  return entries;
+}
+
 export function validateProject(p: unknown): p is Project {
   // Malformed nested JSON must be rejected without crashing the import UI.
   try {
@@ -136,12 +248,26 @@ function validateProjectData(p: unknown): p is Project {
         !Array.isArray(f.assignments) ||
         f.assignments.length !== f.width * f.height ||
         !f.assignments.every(validColor) ||
-        [f.importance, f.portraitV1].some(
+        [
+          f.importance,
+          f.portraitV1,
+          f.portraitV2?.evidence,
+          f.portraitV3?.evidence,
+        ].some(
           (map) =>
             map !== undefined &&
             (!Array.isArray(map) ||
               map.length !== f.assignments.length ||
               !map.every((v) => Number.isFinite(v) && v >= 0 && v <= 1)),
+        ) ||
+        [f.portraitV2, f.portraitV3].some(
+          (portrait) =>
+            portrait !== undefined &&
+            (!portrait ||
+              !Array.isArray(portrait.evidence) ||
+              !Array.isArray(portrait.toneArea) ||
+              portrait.toneArea.length !== a.assignments.length ||
+              !portrait.toneArea.every((v) => v === 0 || v === 1)),
         )
       )
         return false;

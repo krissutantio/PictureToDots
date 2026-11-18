@@ -218,6 +218,13 @@ test("merged regions survive import, label changes, save and reopen", async ({
       buffer: Buffer.from(JSON.stringify(project)),
     });
   await expect(page.locator("[data-region]")).toHaveCount(1);
+  await page.getByRole("button", { name: "Strategies", exact: true }).click();
+  await expect(page.locator(".comparison-art svg")).toHaveCount(3);
+  await expect(
+    page.getByRole("button", { name: "Download comparison proof PDF" }),
+  ).toBeEnabled();
+  await page.getByRole("button", { name: "Template", exact: true }).click();
+  await expect(page.locator(".artwork [data-region]")).toHaveCount(1);
   await page.getByLabel("Coloring style").selectOption("traditional");
   await expect(page.locator("[data-region]")).toHaveCount(1);
   await page.getByRole("button", { name: "Save project", exact: true }).click();

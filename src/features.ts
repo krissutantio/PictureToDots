@@ -61,6 +61,7 @@ function stamp(
   radius: number,
   value: number,
   protect = false,
+  suppressed?: Uint8Array,
 ) {
   for (let k = 0; k < Math.max(1, points.length - 1); k++) {
     const a = points[k],
@@ -84,6 +85,7 @@ function stamp(
           d = Math.hypot(x + 0.5 - ax - t * dx, y + 0.5 - ay - t * dy);
         if (d > radius) continue;
         const i = y * w + x;
+        if (suppressed) suppressed[i] = value < 0 ? 1 : 0;
         if (value < 0) {
           field[i] *= clamp(d / radius) * 0.3;
           protectedMap[i] = 0;
@@ -208,6 +210,10 @@ export function importanceMap(
         }
       }
   }
+  const suppressed =
+    s.priority === portraitPriority && strokes.length
+      ? new Uint8Array(w * h)
+      : undefined;
   for (const stroke of strokes)
     stamp(
       importance,
@@ -218,8 +224,15 @@ export function importanceMap(
       stroke.radius * Math.min(w / rect.width, h / rect.height),
       stroke.value,
       stroke.value > 0,
+      suppressed,
     );
-  return { importance, edges: edgeMap, protected: protectedMap, strength };
+  return {
+    importance,
+    edges: edgeMap,
+    protected: protectedMap,
+    strength,
+    suppressed,
+  };
 }
 export function edgeField(data: Uint8ClampedArray, w: number, h: number) {
   const luma = new Float32Array(w * h),
@@ -381,6 +394,7 @@ export function featurePrepare(
   detailData: Uint8ClampedArray;
   detailImportance: Float32Array;
   portraitEvidence?: Float32Array;
+  portraitToneArea?: Uint8Array;
 } {
   const { edges } = edgeField(data, w, h),
     map = importanceMap(
@@ -400,7 +414,7 @@ export function featurePrepare(
     s.mode === "dots" &&
     analysis?.faces.length &&
     strength > 0
-      ? simplifyPortrait(data, w, h, tw, s, analysis.faces, rect, map)
+      ? simplifyPortrait(data, w, h, tw, th, s, analysis.faces, rect, map)
       : undefined;
   const adjusted = portrait?.data ?? prepareTones(data, w, h, s, map, edges);
   const out = resizeAverage(adjusted, w, h, tw, th),
@@ -443,8 +457,22 @@ export function featurePrepare(
       importance[cell] = imp / Math.max(1, n);
       targetEdges[cell] = edge;
       protectedMap[cell] = protectedCount > n * 0.1 ? 1 : 0;
-      // Preserve observed dark detail during reduction, never synthesize feature shapes.
-      if (protectedCount && edge > 0.12) {
+      if (portrait && protectedCount && edge > 0.12) {
+        // Hold both signs of detail when selecting inks for the reduced field.
+        const color = [0, 0, 0];
+        let support = 0;
+        for (const { i } of candidates) {
+          const weight = portrait.evidence[i] ** 2;
+          support += weight;
+          for (let k = 0; k < 3; k++) color[k] += adjusted[i * 4 + k] * weight;
+        }
+        if (support > 0) {
+          const mix = Math.min(0.66, Math.sqrt(support / n) * 2);
+          for (let k = 0; k < 3; k++)
+            out[cell * 4 + k] += (color[k] / support - out[cell * 4 + k]) * mix;
+        }
+      } else if (protectedCount && edge > 0.12) {
+        // Preserve observed dark detail in the other feature-aware priorities.
         candidates.sort((a, b) => a.l - b.l);
         const dark = candidates[Math.floor(candidates.length * 0.25)],
           mean =
@@ -464,6 +492,7 @@ export function featurePrepare(
     detailData: adjusted,
     detailImportance: map.importance,
     portraitEvidence: portrait?.evidence,
+    portraitToneArea: portrait?.toneArea,
     features: {
       importance,
       edges: targetEdges,

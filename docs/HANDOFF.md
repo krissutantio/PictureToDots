@@ -2,7 +2,7 @@
 
 ## Current request
 
-Latest: continue the portrait recognizability priority. Implemented an opt-in **Portrait Simplification** strategy and compared it locally against the current baseline on both reference photos. Read [PORTRAIT_SIMPLIFICATION](PORTRAIT_SIMPLIFICATION.md) for implementation, constraints, proof results and remaining visual acceptance.
+Latest: continued the director/Sol feedback loop on captured portrait detail. Selected measured ridge candidates plus closer supported-detail spacing; rejected random-candidate inflation and weaker ridges after matched proofs. V1/V2 saved layouts remain explicit upgrades. See [PORTRAIT_DETAIL_EXPERIMENTS](PORTRAIT_DETAIL_EXPERIMENTS.md) and the 2026-11-17 results below.
 
 Build the browser-only photo-to-dot/line-art and notebook app from the user's initial brief. Reference photos informed staggered light-gray letters, top binding, dark/light keys and a reusable protective sheet. Follow-up adds feature-aware subject/face preservation, reviewable suggested crops, a usable crop editor at 1×, and concise handoff Markdown.
 
@@ -46,6 +46,34 @@ React/Vite studio; dot and segmented line artwork; CIELAB marker matching; manua
 - Added **Portrait Simplification** to Conversion priority. It smooths minor tonal variation and reserves small dots for observed local contrast near facial features; it does not draw from landmark shapes. The stored `portraitV1` evidence is optional and validated. Existing projects, dot settings and Line Art retain their previous behavior.
 - Matched private proofs at 5 × 7 in, 60 sampling columns, 12/60 colors and 2–3.2 mm dots: closer crops retain more eye/mouth detail; glasses frames still partially merge with eyes. Centered Photo Booth proof clips one detected eye. User visual acceptance and physical ink proofs are pending.
 - **34 unit tests, production build, all 18 Chromium scenarios passed.** Rendered closest 12-color PDFs; no symbol clipping/overlap in reviewed output. Private proof artifacts are outside the repo; no outbound HTTP requests in the private run. Work is local; no push or deploy.
+
+## Review and comparison fixes (2026-11-16)
+
+- Read the project documentation and reviewed the four private centered/closer comparison sheets (12/60 colors), plus both closer source/tone/packing breakdowns. Portrait likeness remains unresolved: glasses/eyes merge, nose/mouth detail is sparse, and the centered Photo Booth crop clips an eye. No algorithm/physical-limit changes or private-image publication.
+- Fixed Strategies reprocessing the active artwork and potentially losing merged regions. Completed artwork is retained across preview switches; Color Accuracy no longer invalidates on unused analysis/stroke data. Comparison jobs clear previous results before regeneration.
+- Strategies now shows the actual accepted source crop/rotation using the shared input sampler. Corrected stale README deployment history and adaptive-layout defaults/palette documentation.
+- Checks: **34 unit tests pass; production build passes; all 18 Chromium scenarios pass**. Extended merged-region regression covers Strategies round trip; portrait scenario checks the sampled source preview. Initial browser launch was sandbox-blocked; authorized rerun succeeded. One test-edit mistake was corrected before the final full pass. Generated example timestamp changes were discarded.
+- Changes remain local, not deployed. Safari/Firefox, physical ink calibration, printed symbol readability and user acceptance of likeness remain open.
+
+## Portrait detail and notebook deletion (2026-11-16)
+
+- Directed Sol implementation/evaluation agents. Accepted the second matched candidate: measured light/dark ridges and mouth contrast, wider observed glasses-rim search, and similar-ink support restricted to facial tones. New `portraitV2` evidence is validated; saved v1 geometry remains exact. Old portraits offer **Review updated portrait detail → Use updated portrait**, with Undo/Redo restoring old artwork and edits.
+- Reviewed both closer 12/60-color proofs plus centered 12-color proofs. Lips and parts of lower glasses rims improve; small centered faces and eye/frame overlap remain limited. Same source crop, palette, 5 × 7 in, 60 columns and 2–3.2 mm limits. Private eight-case proof harness checked source bytes, physical bounds/spacing, palette membership and round trips; zero external requests. See [portrait results](PORTRAIT_SIMPLIFICATION.md). Private review copies are ignored under `test-results/portrait-review/`.
+- Home **Delete** confirms notebook/page removal and preserves separately saved projects. Atomic library/active/legacy persistence prevents resurrection, including last-notebook deletion and stale tabs. Stale deleted editors return Home rather than redirecting further typing into another notebook. See [WORKSPACE](WORKSPACE.md).
+- Final checks: **36 unit tests pass; production build passes; all 19 Chromium scenarios pass**. Includes legacy geometry hash, subcell disk support, V2 validation, negative importance strokes, explicit upgrade/Undo/Redo, cancel/nonactive/active/last deletion, reload, stale tabs and create-after-empty. Desktop/mobile delete controls visually reviewed. Generated example timestamp changes discarded.
+- Work remains local; no push/deploy. Broader real portraits, Safari/Firefox, physical ink/paper and user likeness acceptance remain pending.
+
+## Detail feedback loop (2026-11-17)
+
+- Directed three Sol agents through implementation, independent evaluation and code review. Selected `portraitV3`: measured ridge candidates plus 0.45 mm whitespace between supported detail pairs. Diameter/palette/crop/resolution stay fixed; ordinary reference spacing stays intact. Compared isolated ridge/spacing arms, 3× random samples, support/ranking alternatives, larger gaps and weaker ridges. See [experiment record](PORTRAIT_DETAIL_EXPERIMENTS.md).
+- Closer eyes/glasses improve over V2 at modest count increases; nose detail remains weak and the clipped Photo Booth crop has some regressions. Final private/public 14-case harness passed source, palette, geometry and round-trip checks with **zero external requests**. Rendered two symbol PDFs with Poppler: no overlap/clipping observed. Private before/after and method sheets remain ignored in `test-results/portrait-review/`.
+- Fixed stable ridge-ID namespace across size changes; preserved exact V1/V2 output. V1/V2 review/apply and Undo/Redo are browser-covered. Hoisted invariant glyph sizing and numeric bucket storage reduce placement work. Independent imported-field/large-page/legacy-label stress checks passed.
+- Checks: **37 unit tests, production build and all 19 Chromium scenarios pass**; the strengthened dot-ID regression also passes its focused suite. Generated example timestamp changes restored. Documentation updated. Sol agents hit their usage limit after the experiments; director completed proof selection, verification and docs.
+- No push/deploy. Actual marker/paper, Safari/Firefox, broader portraits and user likeness acceptance remain pending.
+
+## Release verification (2026-11-17)
+
+- Release checks rerun: 37 unit tests passed, production build succeeded, and all 19 Chromium scenarios passed. Check [GitHub Actions](https://github.com/krissutantio/PictureToDots/actions) for the deployment result for this commit.
 
 ## Remaining limits / next work
 

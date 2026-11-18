@@ -59,10 +59,21 @@ The future illustrated-hatching mode is specified only in [LINE_ART_REFERENCE](L
 ## Portrait simplification
 
 The opt-in Dot Art priority calls `simplifyPortrait` with crop-mapped landmark
-neighborhoods and observed pixels. Its selective smoothing and bounded contrast
-evidence feed existing color matching. A validated optional `dotField.portraitV1`
-map activates feature-first placement in v3 only; it is a packing contract for
-this prototype, not a change to existing v3 projects. All geometry/export paths
-continue through `dotMarks`. `comparisonPriorities` selects the matched baseline
-and prototype for the studio and PDF together. See
-[PORTRAIT_SIMPLIFICATION](PORTRAIT_SIMPLIFICATION.md) for limits and proof results.
+neighborhoods and observed pixels. It uses measured light and dark contrast in
+the existing color-matching pipeline. The worker stores `dotField.portraitV2`
+with high-resolution feature evidence and a regular-grid mask of facial tone
+areas. In adaptive v3, the evidence reserves physically supported minimum-size
+dots and the mask limits similar-ink fill for ordinary dots. Existing v3 artwork
+with `dotField.portraitV1` uses its original reservation rule and geometry.
+All preview and export paths share `dotMarks`. `comparisonPriorities` selects
+the same strategies for the studio comparison and its PDF.
+[Portrait simplification proof and limits](PORTRAIT_SIMPLIFICATION.md).
+
+## Portrait placement V3
+
+`portraitV3` reuses validated evidence/tone-area data and selects measured ridge
+candidates plus local detail-pair spacing. Actual symbol/circle footprints and
+configured sizes remain hard bounds. Ridge IDs use a fixed namespace independent
+of the candidate-attempt budget, so size changes do not reassign edits. V1/V2
+packing remains deterministic and unchanged. See
+[PORTRAIT_DETAIL_EXPERIMENTS](PORTRAIT_DETAIL_EXPERIMENTS.md).

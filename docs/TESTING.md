@@ -88,3 +88,25 @@ Bundled `pdftoppm` is available, but its default fontconfig path may be invalid.
 ## Verification limits
 
 Chromium is automated. Actual marker/paper proofs and Safari/Firefox remain manual. No metric establishes identity likeness. The chart-derived palette is uncalibrated; calibrate actual inks.
+
+## Review regression verification (2026-11-16)
+
+- `npm test`: **34 passed**. `npm run build`: **passed**. Full `npm run test:e2e`: **18 passed**.
+- Extended merged-region browser regression checks opening Strategies, waiting for completed comparisons, returning to Template, then saving/reopening without replacing merged artwork.
+- Portrait browser coverage checks that the comparison source is a sampled accepted crop, alongside existing palette/grid, original-byte, export and local-only checks.
+- Visually reviewed stored private centered/closer 12/60-color sheets for both photos and closer source/smoothing/packing breakdowns. These are existing proofs, not evidence of a new algorithm improvement; eye/glasses separation and facial detail remain unresolved.
+
+## Portrait V2 / notebook deletion verification (2026-11-16)
+
+- Final `npm test`: **36 passed**; `npm run build`: **passed**; full `npm run test:e2e`: **19 passed**.
+- Unit regressions cover exact legacy portrait geometry, observed light/dark/mouth evidence, negative-brush suppression, similar-ink support without crossing paper cutouts, subcell disk support and V2 import validation.
+- Portrait browser flow verifies explicit legacy upgrade and exact dot IDs after Undo/Redo, in addition to saved originals, palette/grid budgets, comparisons and local-only requests.
+- Notebook browser flow covers cancel, inactive/active/last deletion through reload, legacy migration, stale-tab rejection/return Home, preserved separate projects and creation after an empty library. Home actions were visually reviewed at desktop/mobile sizes.
+- Eight private matched cases retained source crop, physical page/dots and palette budgets. Proof harness checks sampled-source equality, palette eligibility, physical bounds/gaps and JSON placement. Closer proofs show improved lips and partial lower glasses rims; small faces and complete glasses/eye separation remain unresolved. See [PORTRAIT_SIMPLIFICATION](PORTRAIT_SIMPLIFICATION.md). No claim of universal likeness or physical print acceptance.
+
+## Portrait V3 feedback loop (2026-11-17)
+
+- `npm test`: **37 passed**; `npm run build`: **passed**; full `npm run test:e2e`: **19 passed**. After strengthening the stable-ID assertion, the focused dot suite passed again.
+- New unit regression checks V2 exact geometry, supported V3 ridges, true circle/symbol spacing, paper cutouts, V3 validation/round trip and ID stability across physical size changes. Browser portrait flow upgrades both V1 and V2 through review, apply and Undo/Redo.
+- Fourteen local final proof cases (8 private, 4 astronaut, 2 cat) passed sampled-source equality, palette eligibility, diameter/bounds, geometry round trip and privacy checks. Cat output is identical. Separate ablations compare ridge/spacing, increased randomness, support/ranking and weaker evidence. These diagnostics are not likeness scores; detailed results and negative cases are in [PORTRAIT_DETAIL_EXPERIMENTS](PORTRAIT_DETAIL_EXPERIMENTS.md).
+- Independent stress checks cover 100-column large pages, imported 750×1056 evidence, 0.5 mm dots, legacy labels, paper cutouts, recoloring/backups and stable IDs across size changes. Two final private symbol PDFs rendered with Poppler show no overlapping/clipped symbols. Physical ink spread remains unverified.
